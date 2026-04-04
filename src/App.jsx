@@ -1782,8 +1782,9 @@ Output ONLY the improved description, no other text.`
         },
         body: JSON.stringify({
           model: 'deepseek/deepseek-chat',
-          messages: [{ role: 'user', content: 'Say WORKING if you receive this message.' }],
-          max_tokens: 50
+          messages: [{ role: 'user', content: 'Reply with exactly: WORKING' }],
+          max_tokens: 50,
+          temperature: 0.7
         }),
       })
       
