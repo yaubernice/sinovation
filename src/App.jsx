@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { BarChart3, ClipboardList, Lightbulb, Menu, X, LogOut, Download, TrendingUp, Users, AlertCircle, Phone, Mail, Star, Clock, LogIn, UserPlus, Eye, EyeOff, CheckCircle, AlertTriangle, Zap, FileText, LineChart as LineIcon, Send, MessageCircle, Settings, ChevronDown, Filter, Calendar, TrendingDown, Activity, MapPin, Loader, Image as ImageIcon, ExternalLink, ThumbsUp, ThumbsDown, User, Award, Briefcase, Target, TrendingUp as TrendUp, BarChart3 as BarIcon, Upload, Zap as Spark, Flame, Brain, Lightbulb as LightBulbIcon, TrendingUpIcon, BarChart2, PieChart as PieChartIcon } from 'lucide-react'
+import { BarChart3, ClipboardList, Lightbulb, Menu, X, LogOut, Download, TrendingUp, Users, AlertCircle, Phone, Mail, Star, Clock, LogIn, UserPlus, Eye, EyeOff, CheckCircle, AlertTriangle, Zap, FileText, LineChart as LineIcon, Send, MessageCircle, Settings, ChevronDown, Filter, Calendar, TrendingDown, Activity, MapPin, Loader, Image as ImageIcon, ExternalLink, ThumbsUp, ThumbsDown, User, Award, Briefcase, Target, TrendingUp as TrendUp, BarChart3 as BarIcon, Upload, Zap as Spark, Flame, Brain, Lightbulb as LightBulbIcon, TrendingUpIcon, BarChart2, PieChart as PieChartIcon, Wrench } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, ScatterChart, Scatter, AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart } from 'recharts'
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler } from 'chart.js'
 import { Doughnut, Bar as ChartJSBar, Line as ChartJSLine, PolarArea, Radar as ChartJSRadar } from 'react-chartjs-2'
@@ -27,21 +27,23 @@ const THEME = {
 }
 
 // Advanced AI Integration - DeepSeek with Intelligent Fallbacks & Retry Logic
-const callDeepSeekAPI = async (message, retryCount = 0) => {
+const callOpenRouterAPI = async (message, retryCount = 0) => {
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout for OpenRouter
     
-    console.log('🔄 Calling DeepSeek API with message:', message.substring(0, 50))
+    console.log('🔄 Calling OpenRouter API with message:', message.substring(0, 50))
     
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-14bce70e2e6d4286bc6167ddf7e5f978',
+        'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://sino-fas.local',
+        'X-Title': 'SINO-FAS Property Management',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek/deepseek-chat',
         messages: [{ 
           role: 'user', 
           content: `You are a professional property management AI assistant. Respond concisely and professionally in 2-3 sentences. User message: "${message}"` 
@@ -57,34 +59,34 @@ const callDeepSeekAPI = async (message, retryCount = 0) => {
     
     clearTimeout(timeoutId)
     
-    console.log('📡 API Response Status:', response.status)
+    console.log('📡 OpenRouter Response Status:', response.status)
     
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('❌ API Error Response:', response.status, errorText)
+      console.error('❌ OpenRouter Error Response:', response.status, errorText)
       
       if (retryCount < 2 && (response.status >= 500 || response.status === 429)) {
-        console.log(`🔄 Retry attempt ${retryCount + 1} for API...`)
+        console.log(`🔄 Retry attempt ${retryCount + 1} for OpenRouter API...`)
         await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)))
-        return callDeepSeekAPI(message, retryCount + 1)
+        return callOpenRouterAPI(message, retryCount + 1)
       }
       throw new Error(`API Error: ${response.status}`)
     }
     
     const data = await response.json()
-    console.log('✓ API Response received:', data)
+    console.log('✓ OpenRouter Response received:', data)
     
     const content = data.choices?.[0]?.message?.content?.trim()
     
     if (content && content.length > 10) {
-      console.log('✓ DeepSeek API successful:', content.substring(0, 60) + '...')
+      console.log('✓ OpenRouter API successful:', content.substring(0, 60) + '...')
       return content
     }
     
     console.warn('⚠️ Empty or invalid response from API')
     throw new Error('Empty response from API')
   } catch (error) {
-    console.error('❌ DeepSeek API Error:', error.message)
+    console.error('❌ OpenRouter API Error:', error.message)
     console.warn('📋 Using intelligent fallback system...')
     
     // Intelligent Fallback Responses based on context
@@ -156,6 +158,9 @@ export default function App() {
   // Analytics states
   const [timePeriod, setTimePeriod] = useState('weekly')
   
+  // Customer Portal Tab State
+  const [customerTab, setCustomerTab] = useState('chat')
+  
   // File complaint states with approval tracking
   const [newComplaint, setNewComplaint] = useState({ 
     title: '', 
@@ -167,6 +172,11 @@ export default function App() {
   const [complaintSubmitting, setComplaintSubmitting] = useState(false)
   const [classificationLoading, setClassificationLoading] = useState(false)
   const [classificationResult, setClassificationResult] = useState(null)
+  const [selectedComplaintForAI, setSelectedComplaintForAI] = useState(null)
+  const [aiRecommendations, setAiRecommendations] = useState(null)
+  const [loadingAIRec, setLoadingAIRec] = useState(false)
+  const [generatingDescription, setGeneratingDescription] = useState(false)
+  const [generatedDescription, setGeneratedDescription] = useState('')
 
   // AI Chat states
   const [showAIChat, setShowAIChat] = useState(false)
@@ -428,7 +438,7 @@ export default function App() {
       Complaint: "${newComplaint.description}"
       Response format: ONLY the category name, nothing else.`
       
-      const classification = await callDeepSeekAPI(classificationPrompt)
+      const classification = await callOpenRouterAPI(classificationPrompt)
       const category = Object.keys(CATEGORIES).find(key => classification.toUpperCase().includes(key)) || 'HVAC'
       setClassificationResult(category)
       
@@ -489,7 +499,7 @@ export default function App() {
     setAiResponding(true)
 
     try {
-      const response = await callDeepSeekAPI(chatInput)
+      const response = await callOpenRouterAPI(chatInput)
       const aiMsg = { id: Date.now() + 1, sender: 'ai', text: response, timestamp: new Date() }
       setChatMessages(prev => [...prev, aiMsg])
     } catch (e) {
@@ -662,8 +672,200 @@ export default function App() {
             </div>
 
             {/* AI Chat for this complaint */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '12px', backgroundColor: THEME.accent + '15', borderRadius: '8px', border: `1px solid ${THEME.accent}33`, textAlign: 'center' }}>
-              <button onClick={() => { setShowAIChat(true); setChatMessages([{ id: 1, sender: 'ai', text: `I can help you with complaint ${selectedComplaint.id}. What would you like to know?`, timestamp: new Date() }]) }} style={{ padding: '10px 16px', backgroundColor: THEME.primary, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}><MessageCircle size={14} style={{ display: 'inline', marginRight: '6px' }} /> Ask AI About This</button>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'grid', gap: '12px' }}>
+              {/* AI Recommendations Button */}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                onClick={() => generateComplaintRecommendations(selectedComplaint)}
+                disabled={loadingAIRec}
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: loadingAIRec ? THEME.border : THEME.success,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: loadingAIRec ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: loadingAIRec ? 0.6 : 1,
+                }}
+              >
+                {loadingAIRec ? (
+                  <>
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}>
+                      <Brain size={14} />
+                    </motion.div>
+                    Generating AI Recommendations...
+                  </>
+                ) : (
+                  <>
+                    <Brain size={14} />
+                    Get AI Recommendations & Safety Warnings
+                  </>
+                )}
+              </motion.button>
+
+              {/* AI Recommendations Display - Clear Step Format */}
+              {aiRecommendations && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    padding: '24px',
+                    backgroundColor: '#fff8e1',
+                    borderRadius: '12px',
+                    border: `3px solid #ffc107`,
+                    maxHeight: '600px',
+                    overflow: 'auto',
+                    display: 'grid',
+                    gap: '16px'
+                  }}
+                >
+                  {/* Title */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: '12px',
+                    borderBottom: `2px solid #ffc107`,
+                    paddingBottom: '16px'
+                  }}>
+                    <Brain size={24} color={THEME.primary} />
+                    <h4 style={{ 
+                      fontSize: '16px', 
+                      fontWeight: 'bold', 
+                      color: THEME.dark, 
+                      margin: 0 
+                    }}>
+                      🤖 AI-Powered Recommendations & Safety Guide
+                    </h4>
+                  </div>
+
+                  {/* Parse recommendations by sections */}
+                  {aiRecommendations.split('\n\n').map((section, idx) => {
+                    // Extract emoji and title if exists - match common emojis
+                    const emojiMatch = section.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[^:\n])\s*(.+?):/);
+                    const emoji = emojiMatch ? emojiMatch[1] : '';
+                    const title = emojiMatch ? emojiMatch[2] : '';
+                    const content = emojiMatch ? section.substring(emojiMatch[0].length).trim() : section;
+
+                    // Parse numbered items within section
+                    const items = content.split(/\n(?=\d+\)|\d+\.)/);
+                    
+                    return (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        style={{
+                          padding: '16px',
+                          backgroundColor: 'white',
+                          borderRadius: '10px',
+                          border: `2px solid ${
+                            emoji === '🚨' ? THEME.danger :
+                            emoji === '⚠️' ? THEME.warning :
+                            emoji === '📋' ? THEME.primary :
+                            emoji === '💬' ? THEME.secondary :
+                            emoji === '🔍' ? THEME.success :
+                            THEME.light
+                          }`,
+                          borderLeft: `5px solid ${
+                            emoji === '🚨' ? THEME.danger :
+                            emoji === '⚠️' ? THEME.warning :
+                            emoji === '📋' ? THEME.primary :
+                            emoji === '💬' ? THEME.secondary :
+                            emoji === '🔍' ? THEME.success :
+                            THEME.light
+                          }`
+                        }}
+                      >
+                        {title && (
+                          <h5 style={{
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            color: THEME.dark,
+                            margin: '0 0 12px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <span style={{ fontSize: '18px' }}>{emoji}</span>
+                            {title}
+                          </h5>
+                        )}
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {items.map((item, itemIdx) => {
+                            const itemMatch = item.trim().match(/^(\d+[\.\)])\s*(.+)$/m);
+                            const stepNum = itemMatch ? itemMatch[1].trim() : '';
+                            const stepContent = itemMatch ? itemMatch[2] : item.trim();
+                            
+                            return (
+                              <div key={itemIdx} style={{
+                                display: 'grid',
+                                gridTemplateColumns: stepNum ? 'auto 1fr' : '1fr',
+                                gap: '12px',
+                                alignItems: 'start'
+                              }}>
+                                {stepNum && (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '28px',
+                                    height: '28px',
+                                    backgroundColor: THEME.primary,
+                                    color: 'white',
+                                    borderRadius: '50%',
+                                    fontWeight: 'bold',
+                                    fontSize: '12px',
+                                    flexShrink: 0
+                                  }}>
+                                    {stepNum.replace(/[.\)]/g, '')}
+                                  </div>
+                                )}
+                                <p style={{
+                                  fontSize: '13px',
+                                  color: THEME.text,
+                                  margin: 0,
+                                  lineHeight: '1.6',
+                                  fontWeight: stepNum ? '500' : 'normal'
+                                }}>
+                                  {stepContent}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              )}
+
+              {/* Ask AI Button */}
+              <button
+                onClick={() => { setShowAIChat(true); setChatMessages([{ id: 1, sender: 'ai', text: `I can help you with complaint ${selectedComplaint.id}. What would you like to know?`, timestamp: new Date() }]) }}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: THEME.primary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <MessageCircle size={14} /> Ask AI About This Complaint
+              </button>
             </motion.div>
           </div>
         </motion.div>
@@ -801,10 +1003,70 @@ export default function App() {
               </div>
             </div>
 
-            {/* Description */}
+            {/* Description with AI Generator */}
             <div>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', color: THEME.dark, display: 'block', marginBottom: '8px' }}>Description *</label>
-              <textarea placeholder="Please describe the issue in detail, including when it started and how it affects you..." value={newComplaint.description} onChange={(e) => setNewComplaint(prev => ({ ...prev, description: e.target.value }))} style={{ width: '100%', padding: '12px', border: `2px solid ${THEME.light}`, borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', minHeight: '140px', fontFamily: 'Arial', resize: 'vertical' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 'bold', color: THEME.dark }}>Description *</label>
+                <motion.button 
+                  type="button"
+                  onClick={() => generateComplaintDescription(newComplaint.description)}
+                  disabled={generatingDescription || !newComplaint.description.trim()}
+                  whileHover={{ scale: 1.05 }}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: generatingDescription ? THEME.border : THEME.primary,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: generatingDescription ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    opacity: generatingDescription ? 0.6 : 1,
+                  }}
+                >
+                  {generatingDescription ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}>
+                        <Loader size={12} />
+                      </motion.div>
+                      Improving...
+                    </>
+                  ) : (
+                    <>
+                      <Brain size={12} />
+                      AI Improve
+                    </>
+                  )}
+                </motion.button>
+              </div>
+              <textarea 
+                placeholder="Please describe the issue in detail, including when it started and how it affects you..." 
+                value={newComplaint.description} 
+                onChange={(e) => setNewComplaint(prev => ({ ...prev, description: e.target.value }))} 
+                style={{ width: '100%', padding: '12px', border: `2px solid ${THEME.light}`, borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', minHeight: '140px', fontFamily: 'Arial', resize: 'vertical' }} 
+              />
+              {generatedDescription && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  style={{ 
+                    marginTop: '8px', 
+                    padding: '10px', 
+                    backgroundColor: THEME.success + '15', 
+                    borderRadius: '6px', 
+                    border: `1px solid ${THEME.success}40`,
+                    fontSize: '11px',
+                    color: THEME.text,
+                    textAlign: 'center',
+                    fontWeight: '500'
+                  }}
+                >
+                  ✓ Description improved by AI
+                </motion.div>
+              )}
             </div>
 
             {/* Photo Upload */}
@@ -834,8 +1096,12 @@ export default function App() {
     )
   }
 
-  // Combined Dashboard + Analytics View with ADVANCED CHARTS
+  // Combined Dashboard + Analytics View with ADVANCED CHARTS and RESPONSIVE DESIGN
   function renderDashboard() {
+    // Define responsive breakpoints
+    const isMobile = window.innerWidth < 768
+    const isTablet = window.innerWidth < 1024
+    
     const performanceData = [
       { category: 'HVAC', resolved: 85, pending: 12, avgTime: 4 },
       { category: 'PLUMBING', resolved: 92, pending: 8, avgTime: 3 },
@@ -844,32 +1110,49 @@ export default function App() {
       { category: 'SAFETY', resolved: 88, pending: 10, avgTime: 4.5 },
     ]
 
+    // Responsive styles based on screen size
+    const containerPadding = isMobile ? '16px 12px' : isTablet ? '24px 16px' : '32px 24px'
+    const sectionPadding = isMobile ? '18px' : '28px'
+    const gridGap = isMobile ? '12px' : isTablet ? '16px' : '24px'
+    const chartHeight = isMobile ? 250 : isTablet ? 300 : 380
+    const categoryChartHeight = isMobile ? 250 : isTablet ? 300 : 320
+    const fontSize = {
+      title: isMobile ? '16px' : '18px',
+      subtitle: isMobile ? '12px' : '13px',
+      small: isMobile ? '10px' : '12px'
+    }
+
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '32px 24px', background: 'linear-gradient(135deg, #f5f8fc 0%, #f0f4f8 100%)' }}>
-        <div style={{ display: 'grid', gap: '24px' }}>
-          {/* Time Period Selector with Enhanced Styling */}
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {['daily', 'weekly', 'monthly', 'yearly'].map(period => (
-              <motion.button key={period} whileHover={{ scale: 1.05 }} onClick={() => setTimePeriod(period)} style={{ 
-                padding: '12px 24px', 
-                backgroundColor: timePeriod === period ? `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.secondary} 100%)` : 'white', 
-                color: timePeriod === period ? 'white' : THEME.text, 
-                border: `2px solid ${timePeriod === period ? THEME.primary : THEME.light}`, 
-                borderRadius: '10px', 
-                cursor: 'pointer', 
-                fontWeight: 'bold', 
-                fontSize: '13px',
-                boxShadow: timePeriod === period ? `0 6px 20px ${THEME.primary}30` : '0 2px 8px rgba(0,0,0,0.06)',
-                transition: 'all 0.3s ease'
-              }}>
-                <Calendar size={14} style={{ display: 'inline', marginRight: '8px' }} />
-                {period.charAt(0).toUpperCase() + period.slice(1)}
-              </motion.button>
-            ))}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: containerPadding, background: 'linear-gradient(135deg, #f5f8fc 0%, #f0f4f8 100%)' }}>
+        <div style={{ display: 'grid', gap: gridGap }}>
+          {/* Time Period Selector with Mobile Abbreviations */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', gap: isMobile ? '8px' : '12px', flexWrap: 'wrap' }}>
+            {['daily', 'weekly', 'monthly', 'yearly'].map(period => {
+              const abbreviations = { daily: 'D', weekly: 'W', monthly: 'M', yearly: 'Y' }
+              const displayText = isMobile ? abbreviations[period] : period.charAt(0).toUpperCase() + period.slice(1)
+              
+              return (
+                <motion.button key={period} whileHover={{ scale: 1.05 }} onClick={() => setTimePeriod(period)} style={{ 
+                  padding: isMobile ? '10px 14px' : '12px 24px', 
+                  backgroundColor: timePeriod === period ? `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.secondary} 100%)` : 'white', 
+                  color: timePeriod === period ? 'white' : THEME.text, 
+                  border: `2px solid ${timePeriod === period ? THEME.primary : THEME.light}`, 
+                  borderRadius: '10px', 
+                  cursor: 'pointer', 
+                  fontWeight: 'bold', 
+                  fontSize: isMobile ? '11px' : '13px',
+                  boxShadow: timePeriod === period ? `0 6px 20px ${THEME.primary}30` : '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'all 0.3s ease'
+                }}>
+                  {!isMobile && <Calendar size={14} style={{ display: 'inline', marginRight: '8px' }} />}
+                  {displayText}
+                </motion.button>
+              )
+            })}
           </motion.div>
 
-          {/* Enhanced KPI Cards with Gradients */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          {/* Enhanced KPI Cards with Responsive Layout */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: gridGap }}>
             {[
               { title: 'Total Complaints', value: complaints.length, icon: AlertCircle, color: THEME.primary, bgGradient: 'linear-gradient(135deg, #2c5aa0 0%, #4a7ba7 100%)', subtitle: 'This period' },
               { title: 'High Priority', value: complaints.filter(c => c.urgency === 'High').length, icon: AlertTriangle, color: THEME.danger, bgGradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', subtitle: 'Needs attention' },
@@ -880,7 +1163,7 @@ export default function App() {
               return (
                 <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }} whileHover={{ y: -12, boxShadow: '0 12px 24px rgba(0,0,0,0.15)' }} style={{ 
                   background: 'white', 
-                  padding: '24px', 
+                  padding: isMobile ? '18px' : '24px', 
                   borderRadius: '16px', 
                   border: `2px solid ${card.color}20`,
                   boxShadow: `0 4px 20px ${card.color}15`,
@@ -899,23 +1182,23 @@ export default function App() {
                   }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px', position: 'relative', zIndex: 1 }}>
                     <div>
-                      <p style={{ fontSize: '11px', color: '#999', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.title}</p>
+                      <p style={{ fontSize: fontSize.small, color: '#999', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.title}</p>
                       <p style={{ fontSize: '10px', color: '#ccc', fontWeight: '500', margin: '6px 0 0 0' }}>{card.subtitle}</p>
                     </div>
                     <div style={{ padding: '10px', background: card.bgGradient, borderRadius: '12px' }}>
-                      <Icon size={24} color='white' />
+                      <Icon size={isMobile ? 18 : 24} color='white' />
                     </div>
                   </div>
-                  <motion.p initial={{ scale: 0.5 }} animate={{ scale: 1 }} style={{ fontSize: '36px', fontWeight: '900', background: card.bgGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, position: 'relative', zIndex: 1 }}>{card.value}</motion.p>
+                  <motion.p initial={{ scale: 0.5 }} animate={{ scale: 1 }} style={{ fontSize: isMobile ? '28px' : '36px', fontWeight: '900', background: card.bgGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, position: 'relative', zIndex: 1 }}>{card.value}</motion.p>
                 </motion.div>
               )
             })}
           </motion.div>
 
-          {/* Enhanced Trend Chart with Gradient */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Complaint Trends ({timePeriod})</h3>
-            <ResponsiveContainer width="100%" height={380}>
+          {/* Enhanced Trend Chart with Gradient - Responsive Height */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Complaint Trends ({timePeriod})</h3>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <AreaChart data={timeBasedData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorSubmitted" x1="0" y1="0" x2="0" y2="1">
@@ -931,8 +1214,8 @@ export default function App() {
                   </filter>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} strokeOpacity={0.5} />
-                <XAxis dataKey="name" stroke={THEME.text} style={{ fontSize: '12px' }} />
-                <YAxis stroke={THEME.text} style={{ fontSize: '12px' }} />
+                <XAxis dataKey="name" stroke={THEME.text} style={{ fontSize: fontSize.small }} />
+                <YAxis stroke={THEME.text} style={{ fontSize: fontSize.small }} />
                 <Tooltip contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '12px' }} />
                 <Area type="monotone" dataKey="submitted" stackId="1" stroke={THEME.warning} strokeWidth={2} fillOpacity={1} fill="url(#colorSubmitted)" filter="url(#shadow)" />
                 <Area type="monotone" dataKey="resolved" stackId="1" stroke={THEME.success} strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" filter="url(#shadow)" />
@@ -940,141 +1223,12 @@ export default function App() {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Category Charts - Enhanced */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '16px' }}>
-            {/* Pie Chart with Better Styling */}
-            <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Distribution by Category</h3>
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart>
-                  <Pie 
-                    data={categoryBreakdown} 
-                    cx="50%" 
-                    cy="50%" 
-                    labelLine={true} 
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={110}
-                    innerRadius={40}
-                    dataKey="value"
-                    paddingAngle={2}
-                  >
-                    {categoryBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={[
-                        'linear-gradient(135deg, #2c5aa0 0%, #4a7ba7 100%)',
-                        'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                        'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                        'linear-gradient(135deg, #0f3460 0%, #533483 100%)',
-                        'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
-                      ][index % 6]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `${value} complaints`} contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Radar Chart for Performance */}
-            <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Performance Analysis</h3>
-              <ResponsiveContainer width="100%" height={320}>
-                <RadarChart data={performanceData}>
-                  <defs>
-                    <linearGradient id="radarGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor={THEME.success} stopOpacity={0.8}/>
-                      <stop offset="100%" stopColor={THEME.success} stopOpacity={0.2}/>
-                    </linearGradient>
-                    <linearGradient id="radarGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor={THEME.warning} stopOpacity={0.8}/>
-                      <stop offset="100%" stopColor={THEME.warning} stopOpacity={0.2}/>
-                    </linearGradient>
-                  </defs>
-                  <PolarGrid stroke={THEME.border} />
-                  <PolarAngleAxis dataKey="category" stroke={THEME.text} style={{ fontSize: '12px' }} />
-                  <PolarRadiusAxis stroke={THEME.border} />
-                  <Radar name="Resolved" dataKey="resolved" stroke={THEME.success} fill="url(#radarGradient1)" fillOpacity={0.7} strokeWidth={2} />
-                  <Radar name="Pending" dataKey="pending" stroke={THEME.warning} fill="url(#radarGradient2)" fillOpacity={0.7} strokeWidth={2} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Tooltip contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-
-          {/* Resolution Time Bar Chart - Enhanced */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Average Resolution Time by Category</h3>
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={resolutionData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={THEME.primary} stopOpacity={1}/>
-                    <stop offset="100%" stopColor={THEME.secondary} stopOpacity={0.8}/>
-                  </linearGradient>
-                  <filter id="barShadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.2" />
-                  </filter>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} strokeOpacity={0.5} />
-                <XAxis dataKey="category" stroke={THEME.text} style={{ fontSize: '12px' }} />
-                <YAxis stroke={THEME.text} style={{ fontSize: '12px' }} label={{ value: 'Hours', angle: -90, position: 'insideLeft', offset: 10 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
-                  cursor={{ fill: THEME.primary + '15' }} 
-                  formatter={(value) => [`${value}h`, 'Time']}
-                />
-                <Bar dataKey="hours" fill="url(#barGradient)" radius={[12, 12, 0, 0]} filter="url(#barShadow)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-
-          {/* Category Performance Table */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Performance Summary</h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${THEME.light}` }}>
-                    <th style={{ textAlign: 'left', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>Category</th>
-                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>Resolved</th>
-                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>Pending</th>
-                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>Avg Time</th>
-                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {performanceData.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: `1px solid ${THEME.lightBg}`, background: idx % 2 === 0 ? 'transparent' : THEME.lightBg + '50' }}>
-                      <td style={{ padding: '14px 12px', color: THEME.text, fontWeight: '600', fontSize: '13px' }}>{row.category}</td>
-                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: '13px' }}>
-                        <span style={{ background: THEME.success + '15', color: THEME.success, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
-                          {row.resolved}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: '13px' }}>
-                        <span style={{ background: THEME.warning + '15', color: THEME.warning, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
-                          {row.pending}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: '13px', fontWeight: '600' }}>{row.avgTime}h</td>
-                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: '13px' }}>
-                        <span style={{ background: row.resolved > 80 ? THEME.success + '15' : THEME.warning + '15', color: row.resolved > 80 ? THEME.success : THEME.warning, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
-                          {row.resolved > 80 ? 'Excellent' : 'Good'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-
-          {/* Advanced Analytics - Chart.js Doughnut with Gradients */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {/* Chart.js Doughnut Chart - Category Breakdown */}
-            <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Complaint Distribution (Chart.js)</h3>
-              <div style={{ position: 'relative', height: 300 }}>
+          {/* Category Charts - Responsive Grid */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(350px, 1fr))', gap: gridGap }}>
+            {/* Chart.js Doughnut Chart - Replaces Pie Chart */}
+            <div style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Distribution by Category</h3>
+              <div style={{ position: 'relative', height: categoryChartHeight }}>
                 <Doughnut 
                   data={{
                     labels: categoryBreakdown.map(c => c.name),
@@ -1097,7 +1251,7 @@ export default function App() {
                         'rgba(139, 92, 246, 1)',
                         'rgba(59, 130, 246, 1)',
                       ],
-                      borderWidth: 3,
+                      borderWidth: isMobile ? 2 : 3,
                       borderRadius: 8,
                       hoverOffset: 8,
                       shadow: {
@@ -1114,13 +1268,169 @@ export default function App() {
                     plugins: {
                       legend: {
                         position: 'bottom',
-                        labels: { padding: 15, font: { size: 12, weight: '600' }, usePointStyle: true }
+                        labels: { padding: isMobile ? 8 : 15, font: { size: isMobile ? 10 : 12, weight: '600' }, usePointStyle: true }
                       },
                       tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
                         padding: 12,
                         titleFont: { size: 14, weight: 'bold' },
-                        bodyFont: { size: 12 },
+                        bodyFont: { size: isMobile ? 11 : 12 },
+                        borderColor: THEME.primary,
+                        borderWidth: 2,
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Radar Chart for Performance */}
+            <div style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Performance Analysis</h3>
+              <ResponsiveContainer width="100%" height={categoryChartHeight}>
+                <RadarChart data={performanceData}>
+                  <defs>
+                    <linearGradient id="radarGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor={THEME.success} stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor={THEME.success} stopOpacity={0.2}/>
+                    </linearGradient>
+                    <linearGradient id="radarGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor={THEME.warning} stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor={THEME.warning} stopOpacity={0.2}/>
+                    </linearGradient>
+                  </defs>
+                  <PolarGrid stroke={THEME.border} />
+                  <PolarAngleAxis dataKey="category" stroke={THEME.text} style={{ fontSize: fontSize.small }} />
+                  <PolarRadiusAxis stroke={THEME.border} />
+                  <Radar name="Resolved" dataKey="resolved" stroke={THEME.success} fill="url(#radarGradient1)" fillOpacity={0.7} strokeWidth={2} />
+                  <Radar name="Pending" dataKey="pending" stroke={THEME.warning} fill="url(#radarGradient2)" fillOpacity={0.7} strokeWidth={2} />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+
+          {/* Resolution Time Bar Chart - Responsive Height */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Average Resolution Time by Category</h3>
+            <ResponsiveContainer width="100%" height={isTablet ? 300 : 340}>
+              <BarChart data={resolutionData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={THEME.primary} stopOpacity={1}/>
+                    <stop offset="100%" stopColor={THEME.secondary} stopOpacity={0.8}/>
+                  </linearGradient>
+                  <filter id="barShadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.2" />
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} strokeOpacity={0.5} />
+                <XAxis dataKey="category" stroke={THEME.text} style={{ fontSize: fontSize.small }} />
+                <YAxis stroke={THEME.text} style={{ fontSize: fontSize.small }} label={{ value: 'Hours', angle: -90, position: 'insideLeft', offset: 10 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                  cursor={{ fill: THEME.primary + '15' }} 
+                  formatter={(value) => [`${value}h`, 'Time']}
+                />
+                <Bar dataKey="hours" fill="url(#barGradient)" radius={[12, 12, 0, 0]} filter="url(#barShadow)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          {/* Category Performance Table - Scrollable on Mobile */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0', letterSpacing: '-0.5px' }}>Performance Summary</h3>
+            <div style={{ overflowX: 'auto', minWidth: isMobile ? '500px' : '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${THEME.light}` }}>
+                    <th style={{ textAlign: 'left', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>Category</th>
+                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>Resolved</th>
+                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>Pending</th>
+                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>Avg Time</th>
+                    <th style={{ textAlign: 'center', padding: '12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {performanceData.map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${THEME.lightBg}`, background: idx % 2 === 0 ? 'transparent' : THEME.lightBg + '50' }}>
+                      <td style={{ padding: '14px 12px', color: THEME.text, fontWeight: '600', fontSize: fontSize.small }}>{row.category}</td>
+                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: fontSize.small }}>
+                        <span style={{ background: THEME.success + '15', color: THEME.success, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
+                          {row.resolved}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: fontSize.small }}>
+                        <span style={{ background: THEME.warning + '15', color: THEME.warning, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
+                          {row.pending}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: fontSize.small, fontWeight: '600' }}>{row.avgTime}h</td>
+                      <td style={{ textAlign: 'center', padding: '14px 12px', fontSize: fontSize.small }}>
+                        <span style={{ background: row.resolved > 80 ? THEME.success + '15' : THEME.warning + '15', color: row.resolved > 80 ? THEME.success : THEME.warning, padding: '4px 12px', borderRadius: '20px', fontWeight: '600' }}>
+                          {row.resolved > 80 ? 'Excellent' : 'Good'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+
+          {/* Advanced Analytics - Doughnut with Responsive Layout */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: gridGap }}>
+            {/* Chart.js Doughnut Chart - Category Breakdown */}
+            <div style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h3 style={{ fontSize: fontSize.subtitle, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Complaint Distribution</h3>
+              <div style={{ position: 'relative', height: categoryChartHeight }}>
+                <Doughnut 
+                  data={{
+                    labels: categoryBreakdown.map(c => c.name),
+                    datasets: [{
+                      label: 'Complaints',
+                      data: categoryBreakdown.map(c => c.value),
+                      backgroundColor: [
+                        'rgba(44, 90, 160, 0.9)',
+                        'rgba(245, 158, 11, 0.9)',
+                        'rgba(16, 185, 129, 0.9)',
+                        'rgba(239, 68, 68, 0.9)',
+                        'rgba(139, 92, 246, 0.9)',
+                        'rgba(59, 130, 246, 0.9)',
+                      ],
+                      borderColor: [
+                        'rgba(44, 90, 160, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(139, 92, 246, 1)',
+                        'rgba(59, 130, 246, 1)',
+                      ],
+                      borderWidth: isMobile ? 2 : 3,
+                      borderRadius: 8,
+                      hoverOffset: 8,
+                      shadow: {
+                        blur: 10,
+                        offsetX: 0,
+                        offsetY: 2,
+                        color: 'rgba(0, 0, 0, 0.2)',
+                      }
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: { padding: isMobile ? 8 : 15, font: { size: isMobile ? 10 : 12, weight: '600' }, usePointStyle: true }
+                      },
+                      tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: isMobile ? 11 : 12 },
                         borderColor: THEME.primary,
                         borderWidth: 2,
                       }
@@ -1131,9 +1441,9 @@ export default function App() {
             </div>
 
             {/* Performance Score Card */}
-            <div style={{ backgroundColor: `linear-gradient(135deg, ${THEME.primary}15 0%, ${THEME.secondary}15 100%)`, padding: '28px', borderRadius: '16px', border: `2px solid ${THEME.primary}30`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ backgroundColor: `linear-gradient(135deg, ${THEME.primary}15 0%, ${THEME.secondary}15 100%)`, padding: sectionPadding, borderRadius: '16px', border: `2px solid ${THEME.primary}30`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Overall Performance Score</h3>
+                <h3 style={{ fontSize: fontSize.subtitle, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Overall Performance Score</h3>
                 <div style={{ display: 'grid', gap: '16px' }}>
                   {[
                     { label: 'Resolution Rate', value: 84, target: 90, color: THEME.success },
@@ -1142,7 +1452,7 @@ export default function App() {
                     { label: 'Efficiency Index', value: 82, target: 85, color: THEME.accent }
                   ].map((metric, idx) => (
                     <div key={idx}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: fontSize.small, fontWeight: '600' }}>
                         <span>{metric.label}</span>
                         <span style={{ color: metric.color }}>{metric.value}%</span>
                       </div>
@@ -1163,23 +1473,21 @@ export default function App() {
                 animate={{ scale: 1 }}
                 style={{ marginTop: '20px', padding: '16px', backgroundColor: 'white', borderRadius: '12px', textAlign: 'center' }}
               >
-                <p style={{ fontSize: '24px', fontWeight: '900', background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.secondary} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0 0 4px 0' }}>84.5</p>
+                <p style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '900', background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.secondary} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0 0 4px 0' }}>84.5</p>
                 <p style={{ fontSize: '11px', color: '#999', fontWeight: 'bold', margin: 0, textTransform: 'uppercase' }}>Overall Score</p>
               </motion.div>
             </div>
           </motion.div>
 
-          {/* Advanced Metrics - Correlations & Trends */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Advanced Metrics & Correlations</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+          {/* Key Metrics - Replaced Advanced Metrics with Business KPIs */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Key Business Metrics</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: gridGap }}>
               {[
-                { title: 'Avg Resolution Time', value: '2.3 days', trend: '-12%', color: THEME.success, icon: '⏱️' },
-                { title: 'First Contact Resolution', value: '68%', trend: '+5%', color: THEME.primary, icon: '✓' },
-                { title: 'Repeat Issues', value: '12%', trend: '-8%', color: THEME.success, icon: '🔄' },
-                { title: 'Cost Per Resolution', value: '$145', trend: '-15%', color: THEME.success, icon: '💰' },
-                { title: 'Staff Utilization', value: '87%', trend: '+3%', color: THEME.warning, icon: '👥' },
-                { title: 'System Uptime', value: '99.8%', trend: '+0.2%', color: THEME.success, icon: '⚡' },
+                { title: 'SLA Compliance', value: '96.2%', target: '95%', trend: '+1.2%', color: THEME.success, icon: '📊' },
+                { title: 'Cost Per Resolution', value: '$145', baseline: '$165', trend: '-12%', color: THEME.success, icon: '💰' },
+                { title: 'Staff Efficiency', value: '87%', target: '85%', trend: '+3%', color: THEME.primary, icon: '👥' },
+                { title: 'Customer Retention', value: '94%', baseline: '92.5%', trend: '+1.5%', color: THEME.primary, icon: '⭐' },
               ].map((metric, idx) => (
                 <motion.div
                   key={idx}
@@ -1188,17 +1496,17 @@ export default function App() {
                   transition={{ delay: idx * 0.05 }}
                   whileHover={{ y: -8 }}
                   style={{
-                    padding: '16px',
+                    padding: isMobile ? '14px' : '16px',
                     backgroundColor: THEME.lightBg,
                     borderRadius: '12px',
                     border: `2px solid ${metric.color}20`,
                     textAlign: 'center'
                   }}
                 >
-                  <p style={{ fontSize: '24px', margin: '0 0 8px 0' }}>{metric.icon}</p>
-                  <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 8px 0', textTransform: 'uppercase' }}>{metric.title}</p>
-                  <p style={{ fontSize: '20px', fontWeight: '900', color: metric.color, margin: '0 0 4px 0' }}>{metric.value}</p>
-                  <p style={{ fontSize: '11px', color: metric.trend.startsWith('+') ? THEME.danger : THEME.success, fontWeight: 'bold', margin: 0 }}>
+                  <p style={{ fontSize: isMobile ? '20px' : '24px', margin: '0 0 8px 0' }}>{metric.icon}</p>
+                  <p style={{ fontSize: fontSize.small, color: '#999', fontWeight: 'bold', margin: '0 0 8px 0', textTransform: 'uppercase' }}>{metric.title}</p>
+                  <p style={{ fontSize: isMobile ? '18px' : '20px', fontWeight: '900', color: metric.color, margin: '0 0 4px 0' }}>{metric.value}</p>
+                  <p style={{ fontSize: '11px', color: metric.trend.startsWith('+') ? THEME.success : THEME.success, fontWeight: 'bold', margin: 0 }}>
                     {metric.trend.startsWith('+') ? '📈' : '📉'} {metric.trend}
                   </p>
                 </motion.div>
@@ -1207,9 +1515,9 @@ export default function App() {
           </motion.div>
 
           {/* Category Performance Deep Dive */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Category Deep Dive - Efficiency Metrics</h3>
-            <ResponsiveContainer width="100%" height={280}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Category Deep Dive - Efficiency Metrics</h3>
+            <ResponsiveContainer width="100%" height={isTablet ? 250 : 280}>
               <ComposedChart data={performanceData}>
                 <defs>
                   <linearGradient id="compositeGradient1" x1="0" y1="0" x2="0" y2="1">
@@ -1222,7 +1530,7 @@ export default function App() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={THEME.border} vertical={false} />
-                <XAxis dataKey="category" stroke={THEME.text} style={{ fontSize: '12px' }} />
+                <XAxis dataKey="category" stroke={THEME.text} style={{ fontSize: fontSize.small }} />
                 <YAxis yAxisId="left" stroke={THEME.text} />
                 <YAxis yAxisId="right" orientation="right" stroke={THEME.text} />
                 <Tooltip contentStyle={{ backgroundColor: 'white', border: `2px solid ${THEME.primary}`, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }} />
@@ -1232,9 +1540,305 @@ export default function App() {
               </ComposedChart>
             </ResponsiveContainer>
           </motion.div>
+
+          {/* Complaints Status Distribution - NEW */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: gridGap }}>
+            {/* Status Distribution Doughnut Chart */}
+            <div style={{ backgroundColor: 'white', padding: sectionPadding, borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h3 style={{ fontSize: fontSize.title, fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Complaint Status Distribution</h3>
+              <div style={{ position: 'relative', height: categoryChartHeight }}>
+                <Doughnut 
+                  data={{
+                    labels: ['Resolved', 'Pending', 'In Review', 'On Hold', 'Rejected'],
+                    datasets: [{
+                      label: 'Complaints by Status',
+                      data: [
+                        complaints.filter(c => c.status === 'Resolved').length,
+                        complaints.filter(c => c.status === 'Pending').length,
+                        complaints.filter(c => c.status === 'Reviewed').length,
+                        complaints.filter(c => c.status === 'On Hold').length,
+                        complaints.filter(c => c.status === 'Rejected').length,
+                      ],
+                      backgroundColor: [
+                        'rgba(16, 185, 129, 0.9)', // Green - Resolved
+                        'rgba(245, 158, 11, 0.9)', // Amber - Pending
+                        'rgba(59, 130, 246, 0.9)', // Blue - In Review
+                        'rgba(107, 114, 128, 0.9)', // Gray - On Hold
+                        'rgba(239, 68, 68, 0.9)', // Red - Rejected
+                      ],
+                      borderColor: [
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(107, 114, 128, 1)',
+                        'rgba(239, 68, 68, 1)',
+                      ],
+                      borderWidth: isMobile ? 2 : 3,
+                      borderRadius: 8,
+                      hoverOffset: 10,
+                      shadow: {
+                        blur: 10,
+                        offsetX: 0,
+                        offsetY: 2,
+                        color: 'rgba(0, 0, 0, 0.2)',
+                      }
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: { padding: isMobile ? 8 : 15, font: { size: isMobile ? 10 : 11, weight: '600' }, usePointStyle: true }
+                      },
+                      tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: isMobile ? 11 : 12 },
+                        borderColor: THEME.primary,
+                        borderWidth: 2,
+                        callbacks: {
+                          label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0)
+                            const percentage = ((context.parsed.y / total) * 100).toFixed(1)
+                            return `${context.label}: ${context.parsed.y} (${percentage}%)`
+                          }
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Status Breakdown Cards */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gap: '12px' }}>
+              {[
+                { label: 'Resolved', value: complaints.filter(c => c.status === 'Resolved').length, color: THEME.success, icon: CheckCircle, lightColor: '#d1fae5' },
+                { label: 'Pending', value: complaints.filter(c => c.status === 'Pending').length, color: THEME.warning, icon: Clock, lightColor: '#fef3c7' },
+                { label: 'In Review', value: complaints.filter(c => c.status === 'Reviewed').length, color: THEME.primary, icon: AlertCircle, lightColor: '#dbeafe' },
+                { label: 'On Hold', value: complaints.filter(c => c.status === 'On Hold').length, color: '#6b7280', icon: AlertTriangle, lightColor: '#f3f4f6' },
+              ].map((status, idx) => {
+                const Icon = status.icon
+                const total = complaints.length
+                const percentage = total > 0 ? ((status.value / total) * 100).toFixed(1) : 0
+                
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    whileHover={{ scale: 1.05 }}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: status.lightColor,
+                      borderRadius: '12px',
+                      border: `2px solid ${status.color}40`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                      <div style={{ padding: '8px', backgroundColor: status.color + '20', borderRadius: '8px' }}>
+                        <Icon size={18} color={status.color} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '12px', color: '#666', fontWeight: '600', margin: '0 0 2px 0', textTransform: 'uppercase' }}>{status.label}</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', gap: '8px', alignItems: 'center' }}>
+                          <p style={{ fontSize: '18px', fontWeight: '900', color: status.color, margin: 0 }}>{status.value}</p>
+                          <div style={{ width: '100px', height: '6px', backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percentage}%` }}
+                              transition={{ duration: 0.8, delay: idx * 0.1 }}
+                              style={{ height: '100%', backgroundColor: status.color }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '13px', fontWeight: '700', color: status.color, margin: 0, textAlign: 'right' }}>{percentage}%</p>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          </motion.div>
         </div>
       </motion.div>
     )
+  }
+
+  // AI Description Generator - Improves tenant input
+  async function generateComplaintDescription(userInput) {
+    if (!userInput.trim()) {
+      alert('Please enter at least a few words describing your issue')
+      return
+    }
+
+    setGeneratingDescription(true)
+    try {
+      const prompt = `You are a property management expert. A tenant has written this complaint description. Please improve and expand it to be more clear and detailed for property management.
+Tenant's input: "${userInput}"
+
+Provide an improved version that:
+- Is 2-3 sentences clear and professional
+- Includes specific details and impact
+- Is ready to submit to property management
+- Keeps the tenant's original meaning but improves clarity
+
+Just provide the improved description, nothing else.`
+
+      const response = await callOpenRouterAPI(prompt)
+      setGeneratedDescription(response)
+      setNewComplaint(prev => ({ ...prev, description: response }))
+    } catch (error) {
+      console.error('Failed to generate description:', error)
+      alert('Could not generate description. Please describe the issue manually.')
+    }
+    setGeneratingDescription(false)
+  }
+
+  // Parse and format AI recommendations into clear steps
+  function parseRecommendations(text) {
+    // Split by numbered items or sections
+    const sections = text.split(/(\d+\.|STEP \d+:|Step \d+:)/i).filter(s => s.trim())
+    const formatted = []
+    let currentStep = ''
+    let stepNum = 0
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i].trim()
+      
+      if (section.match(/^\d+\.|STEP \d+:|Step \d+:/i)) {
+        if (currentStep) {
+          formatted.push({ type: 'step', number: stepNum, content: currentStep })
+          stepNum++
+        }
+        currentStep = ''
+      } else if (section) {
+        currentStep += section + ' '
+      }
+    }
+    
+    if (currentStep) {
+      formatted.push({ type: 'step', number: stepNum, content: currentStep })
+    }
+
+    return formatted
+  }
+
+  // AI Recommendations & Safety Measures for Complaints
+  async function generateComplaintRecommendations(complaint) {
+    setLoadingAIRec(true)
+    try {
+      const prompt = `You are a property management AI expert. For the following complaint, provide step-by-step recommendations in this EXACT format with emojis and clear numbering:
+
+📋 IMMEDIATE ACTIONS (within 24h):
+1) [First action step]
+2) [Second action step]
+3) [Third action step]
+4) [Fourth action step]
+5) [Fifth action step]
+
+⚠️ SAFETY WARNINGS:
+1) [First safety concern]
+2) [Second safety concern]
+3) [Third safety concern]
+
+🔔 ESCALATION TRIGGERS:
+1) [First trigger condition]
+2) [Second trigger condition]
+3) [Third trigger condition]
+
+💬 TENANT COMMUNICATION:
+1) [How to contact tenant]
+2) [What to tell them]
+3) [Follow-up communication]
+
+🔍 FOLLOW-UP INSPECTION:
+1) [When to inspect]
+2) [What to check]
+3) [Verification required]
+
+Complaint Details:
+- Title: ${complaint.title}
+- Category: ${CATEGORIES[complaint.category]?.label}
+- Urgency: ${complaint.urgency}
+- Description: ${complaint.description}
+
+Be VERY specific and actionable. Each step should be clear enough for both tenants and staff to understand.`
+
+      const response = await callOpenRouterAPI(prompt)
+      setAiRecommendations(response)
+    } catch (error) {
+      console.error('Failed to generate recommendations:', error)
+      // Generate formatted fallback recommendations
+      const generateFallback = (categoryKey) => {
+        const fallbacks = {
+          'HVAC': {
+            actions: ['Check thermostat - set to 72°F preferred', 'Verify all vents are unobstructed', 'Check air filters for dirt/blockage', 'Schedule HVAC specialist within 4-6 hours', 'Monitor temperature for next 24 hours'],
+            warnings: ['Do NOT attempt DIY refrigerant work - refrigerant is toxic', 'Turn off unit immediately if strange odors detected', 'Risk of personal injury from moving parts'],
+            escalation: ['No cooling in summer conditions', 'Strange burning or chemical smell from unit', 'Water leaking from indoor unit'],
+            communication: ['Send SMS within 1 hour confirming receipt', 'Provide estimated time of specialist arrival', 'Update tenant every 2 hours during repair'],
+            followup: ['Follow-up inspection after 1 week', 'Verify proper temperature operation', 'Document performance in system']
+          },
+          'PLUMBING': {
+            actions: ['IMMEDIATE - Turn off main water valve if active leak detected', 'Document water damage with photos and video', 'Remove belongings from wet area', 'Call emergency plumber NOW (1.5h response target)', 'Start insurance claim process with photos'],
+            warnings: ['🚨 DANGER - Risk of electrical hazard if water near electrical outlets', 'Slip hazard present - secure area with warning signs', 'Risk of mold growth if water not removed within 24-48 hours', 'Structural damage possible if water penetrates drywall/flooring'],
+            escalation: ['Active water flow or ongoing leak', 'Visible structural damage to walls or floors', 'Water evident in units below', 'Tenant health concerns (elderly, children, immunocompromised)'],
+            communication: ['Call tenant immediately - do not delay', 'Send confirmation text with plumber ETA', 'Assign emergency contractor and get their direct number to tenant', 'Notify adjacent units potentially affected'],
+            followup: ['Structural inspection after 48 hours', 'Mold assessment after 72 hours if drywall is wet', 'Document all remediation work completed', 'Schedule follow-up inspection after 1 week']
+          },
+          'ELECTRICAL': {
+            actions: ['DO NOT attempt any repairs - risk of electrocution', 'Turn off circuit breaker for affected outlet/appliance immediately', 'Mark outlet/area clearly - "DO NOT USE"', 'Schedule licensed electrician within 2 hours', 'Document issue with clear photos from multiple angles'],
+            warnings: ['⚠️ EXTREME DANGER - Risk of electrocution and fire hazard', 'Keep away from water and moisture - do not use in wet areas', 'Never touch exposed wires or damaged outlets', 'Risk of electrical fire - do not override or bypass issue'],
+            escalation: ['Burning smell, smoke, or sparks from outlet', 'Melted or charred outlets or wiring visible', 'Constant circuit breaker tripping', 'Fault affecting multiple outlets in unit'],
+            communication: ['Call tenant IMMEDIATELY - emphasize danger', 'Provide licensed electrician\'s direct contact and ETA', 'Advise tenant to not use affected outlet/area', 'Get inspection completion certificate for building records'],
+            followup: ['Require inspection certificate from licensed electrician', 'Verify all work passes municipal electrical inspection', 'Document repair in system with electrical license number']
+          },
+          'PEST': {
+            actions: ['Identify pest type - ask tenant for photos if possible', 'Remove all food sources and secure trash/garbage', 'Schedule professional pest control within 24-48 hours', 'Provide tenant with prevention tips (seal entry points, cleanliness)', 'Schedule follow-up inspection in 2 weeks'],
+            warnings: ['Health Risk - Rodents/insects can carry diseases and pathogens', 'Use protective gloves when handling/disposing any pest traps', 'Be cautious with pest control chemicals - keep people/pets away during treatment', 'Document any bites, stings, or allergic reactions reported by tenant'],
+            escalation: ['Multiple units affected simultaneously', 'First pest complaint for unit in 30-day period', 'Tenant reports direct bites or stings', 'Visible droppings or extensive infestation'],
+            communication: ['Assure tenant professional treatment is being scheduled', 'Provide pest control company name, phone, and scheduled treatment time', 'Explain treatment process and safety precautions', 'Get proof of treatment completion'],
+            followup: ['Verify pest control service completion within 24 hours', 'Second treatment typically needed 2 weeks after first', 'Advise tenant on ongoing prevention (sealing entry points)', 'Document treatment and follow-up in system']
+          },
+          'NOISE': {
+            actions: ['File formal noise complaint in system immediately', 'Contact source/adjacent unit to identify issue', 'Attempt mediation between parties if neighbors involved', 'Document time, duration, and nature of noise complaint', 'Issue formal warning if violation confirmed'],
+            warnings: ['Escalation Risk - Multiple violations lead to formal lease action', 'Mediation may escalate tension - be professional and neutral', 'Document ALL communications for potential eviction proceedings', 'Verify complaint is legitimate and not retaliation'],
+            escalation: ['Third noise violation in 30-day period', 'After fourth violation = grounds for lease termination', 'Noise after building quiet hours (10PM-8AM)', 'Noise loud enough to disturb multiple units'],
+            communication: ['Send email confirmation of complaint to complainant', 'Forward building quiet hours policy to source unit', 'If repeated, send certified letter with warning', 'Offer mediation or soundproofing consultation'],
+            followup: ['Check in with complainant after 3 days for updates', 'Document all interactions and resolutions', 'Follow up with source unit after warning issued', 'Track patterns for potential lease violation']
+          }
+        }
+        return fallbacks[categoryKey] || fallbacks['HVAC']
+      }
+
+      const categoryKey = Object.keys(CATEGORIES).find(k => CATEGORIES[k].label.includes(complaint.category))
+      const fallback = generateFallback(categoryKey)
+      
+      const formatted = `📋 IMMEDIATE ACTIONS (within 24h):
+${fallback.actions.map((a, i) => `${i + 1}) ${a}`).join('\n')}
+
+⚠️ SAFETY WARNINGS:
+${fallback.warnings.map((w, i) => `${i + 1}) ${w}`).join('\n')}
+
+🔔 ESCALATION TRIGGERS:
+${fallback.escalation.map((e, i) => `${i + 1}) ${e}`).join('\n')}
+
+💬 TENANT COMMUNICATION:
+${fallback.communication.map((c, i) => `${i + 1}) ${c}`).join('\n')}
+
+🔍 FOLLOW-UP INSPECTION:
+${fallback.followup.map((f, i) => `${i + 1}) ${f}`).join('\n')}`
+
+      setAiRecommendations(formatted)
+    }
+    setLoadingAIRec(false)
   }
 
   // Complaints View - FIXED for proper updates
@@ -1946,20 +2550,360 @@ export default function App() {
     )
   }
 
+  // Tenant-Specific Dashboard
+  function renderTenantDashboard() {
+    const myComplaints = complaints.filter(c => c.tenantUnit === currentUser?.unit)
+    const resolvedCount = myComplaints.filter(c => c.status === 'Resolved').length
+    const pendingCount = myComplaints.filter(c => c.status === 'Pending').length
+    const avgResolutionTime = resolvedCount > 0 ? (myComplaints.filter(c => c.status === 'Resolved').reduce((sum, c) => sum + (c.resolutionNotes?.length || 0), 0) / resolvedCount / 10).toFixed(1) : '0'
+    
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: window.innerWidth < 768 ? '16px 12px' : '32px 24px', background: 'linear-gradient(135deg, #f5f8fc 0%, #f0f4f8 100%)' }}>
+        <div style={{ display: 'grid', gap: '24px' }}>
+          {/* Unit Information Card */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Your Unit Information</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -4 }} style={{ padding: '16px', backgroundColor: THEME.lightBg, borderRadius: '12px', border: `2px solid ${THEME.primary}20` }}>
+                <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 8px 0' }}>UNIT NUMBER</p>
+                <p style={{ fontSize: '24px', fontWeight: '900', color: THEME.primary, margin: 0 }}>{currentUser?.unit}</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} whileHover={{ y: -4 }} style={{ padding: '16px', backgroundColor: THEME.lightBg, borderRadius: '12px', border: `2px solid ${THEME.success}20` }}>
+                <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 8px 0' }}>TENANT NAME</p>
+                <p style={{ fontSize: '16px', fontWeight: '600', color: THEME.text, margin: 0 }}>{currentUser?.name}</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} whileHover={{ y: -4 }} style={{ padding: '16px', backgroundColor: THEME.lightBg, borderRadius: '12px', border: `2px solid ${THEME.warning}20` }}>
+                <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 8px 0' }}>CONTACT</p>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: THEME.text, margin: 0 }}>{currentUser?.email}</p>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Complaint Progress Metrics */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(4, 1fr)', gap: '16px' }}>
+            {[
+              { title: 'Total Complaints', value: myComplaints.length, icon: AlertCircle, color: THEME.primary },
+              { title: 'Resolved', value: resolvedCount, icon: CheckCircle, color: THEME.success },
+              { title: 'Pending', value: pendingCount, icon: Clock, color: THEME.warning },
+              { title: 'Avg Resolution', value: `${avgResolutionTime}d`, icon: TrendingUp, color: THEME.secondary },
+            ].map((metric, idx) => {
+              const Icon = metric.icon
+              return (
+                <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }} whileHover={{ y: -8 }} style={{ backgroundColor: 'white', padding: '24px', borderRadius: '16px', border: `2px solid ${metric.color}20`, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', textAlign: 'center' }}>
+                  <Icon size={28} color={metric.color} style={{ margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 8px 0', textTransform: 'uppercase' }}>{metric.title}</p>
+                  <p style={{ fontSize: '28px', fontWeight: '900', color: metric.color, margin: 0 }}>{metric.value}</p>
+                </motion.div>
+              )
+            })}
+          </motion.div>
+
+          {/* Complaint Quality & Satisfaction */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(2, 1fr)', gap: '16px' }}>
+            <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Complaint Status Distribution</h4>
+              <div style={{ position: 'relative', height: 280 }}>
+                <Doughnut
+                  data={{
+                    labels: ['Resolved', 'Pending', 'Reviewed'],
+                    datasets: [{
+                      data: [resolvedCount, pendingCount, myComplaints.filter(c => c.status === 'Reviewed').length],
+                      backgroundColor: ['rgba(16, 185, 129, 0.85)', 'rgba(245, 158, 11, 0.85)', 'rgba(59, 130, 246, 0.85)'],
+                      borderColor: ['rgba(16, 185, 129, 1)', 'rgba(245, 158, 11, 1)', 'rgba(59, 130, 246, 1)'],
+                      borderWidth: 2,
+                      borderRadius: 6,
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { position: 'bottom', labels: { padding: 12, font: { size: 12, weight: '600' }, usePointStyle: true } },
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: `1px solid ${THEME.light}` }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 20px 0' }}>Recent Complaints Timeline</h4>
+              <div style={{ display: 'grid', gap: '12px', maxHeight: 300, overflowY: 'auto' }}>
+                {myComplaints.slice(0, 5).map((complaint, idx) => (
+                  <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.1 }} style={{ padding: '12px', backgroundColor: THEME.lightBg, borderRadius: '8px', borderLeft: `4px solid ${complaint.status === 'Resolved' ? THEME.success : THEME.warning}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '12px', fontWeight: '600', color: THEME.dark, margin: '0 0 4px 0' }}>{complaint.title}</p>
+                        <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>{complaint.category}</p>
+                      </div>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '12px', backgroundColor: complaint.status === 'Resolved' ? THEME.success + '20' : THEME.warning + '20', color: complaint.status === 'Resolved' ? THEME.success : THEME.warning, whiteSpace: 'nowrap' }}>{complaint.status}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // Tenant Staff Directory - Who to Contact
+  function renderTenantStaffDirectory() {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: window.innerWidth < 768 ? '16px 12px' : '32px 24px', background: 'linear-gradient(135deg, #f5f8fc 0%, #f0f4f8 100%)' }}>
+        <div style={{ display: 'grid', gap: '24px' }}>
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '16px', backgroundColor: THEME.lightBg, borderRadius: '12px', borderLeft: `4px solid ${THEME.primary}` }}>
+            <p style={{ fontSize: '13px', color: THEME.text, margin: 0 }}>Know who to contact for different issues. Click on any staff member for more details.</p>
+          </motion.div>
+
+          {/* Staff Categories */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {[
+              {
+                role: 'Property Manager',
+                name: 'Sarah Johnson',
+                email: 'sarah.johnson@sinostaff.com',
+                phone: '+1 (555) 123-4567',
+                availability: 'Mon-Fri, 9AM-5PM',
+                icon: Users,
+                focus: 'General inquiries, unit issues, maintenance',
+                color: THEME.primary,
+              },
+              {
+                role: 'Maintenance Coordinator',
+                name: 'Mike Chen',
+                email: 'mike.chen@sinostaff.com',
+                phone: '+1 (555) 234-5678',
+                availability: 'Mon-Fri, 8AM-6PM',
+                icon: Wrench,
+                focus: 'Repairs, HVAC, plumbing, electrical',
+                color: THEME.warning,
+              },
+              {
+                role: 'Complaints & Resolution',
+                name: 'Emma Davis',
+                email: 'emma.davis@sinostaff.com',
+                phone: '+1 (555) 345-6789',
+                availability: 'Mon-Fri, 9AM-5PM',
+                icon: AlertCircle,
+                focus: 'Complaint tracking, escalations, follow-ups',
+                color: THEME.danger,
+              },
+              {
+                role: 'Tenant Services',
+                name: 'James Wilson',
+                email: 'james.wilson@sinostaff.com',
+                phone: '+1 (555) 456-7890',
+                availability: 'Mon-Sat, 10AM-6PM',
+                icon: MessageCircle,
+                focus: 'Tenant concerns, building amenities, events',
+                color: THEME.success,
+              },
+            ].map((staff, idx) => {
+              const Icon = staff.icon
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  whileHover={{ y: -8 }}
+                  style={{
+                    backgroundColor: 'white',
+                    padding: '24px',
+                    borderRadius: '16px',
+                    border: `2px solid ${staff.color}20`,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'start', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ padding: '12px', backgroundColor: staff.color + '15', borderRadius: '12px' }}>
+                      <Icon size={24} color={staff.color} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '12px', color: '#999', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>{staff.role}</p>
+                      <p style={{ fontSize: '16px', fontWeight: '600', color: THEME.dark, margin: 0 }}>{staff.name}</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '12px', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: THEME.text }}>
+                      <Mail size={14} color={THEME.primary} />
+                      <a href={`mailto:${staff.email}`} style={{ color: THEME.primary, textDecoration: 'none', fontWeight: '500' }}>{staff.email}</a>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: THEME.text }}>
+                      <Phone size={14} color={THEME.primary} />
+                      <a href={`tel:${staff.phone}`} style={{ color: THEME.primary, textDecoration: 'none', fontWeight: '500' }}>{staff.phone}</a>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#999' }}>
+                      <Clock size={14} />
+                      {staff.availability}
+                    </div>
+                    <div style={{ padding: '8px 12px', backgroundColor: THEME.lightBg, borderRadius: '8px', color: THEME.text, fontSize: '11px', lineHeight: '1.4' }}>
+                      {staff.focus}
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </motion.div>
+        </div>
+      </motion.div>
+    )
+  }
+
   if (authState !== 'authenticated') return null
 
-  // Customer Portal (Only AI Chatbot) - FIXED
+  // Customer Portal (With File Complaint & Chat)
   if (userRole === 'customer') {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ minHeight: '100vh', backgroundColor: THEME.lightBg, padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', maxWidth: '600px', marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 12px 0' }}>SINO Chat Support</h1>
-          <p style={{ fontSize: '14px', color: '#999', margin: 0 }}>Get instant support from our AI assistant. Ask about maintenance, complaints, or property management</p>
-        </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', height: '100vh', flexDirection: window.innerWidth < 768 ? 'column' : 'row' }}>
+        {/* Sidebar for Customer Portal */}
+        <motion.div style={{ width: window.innerWidth < 768 ? '100%' : '280px', backgroundColor: THEME.dark, color: 'white', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', borderRight: `1px solid ${THEME.light}`, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+          <div>
+            <h1 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, marginBottom: '4px' }}>SINO Portal</h1>
+            <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>Customer Support</p>
+          </div>
 
-        <motion.button onClick={handleLogout} style={{ padding: '10px 20px', backgroundColor: THEME.danger, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}><LogOut size={14} style={{ display: 'inline', marginRight: '6px' }} /> Logout</motion.button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+            {[
+              { id: 'chat', label: 'AI Chat Support', icon: MessageCircle },
+              { id: 'complaint', label: 'File Complaint', icon: FileText },
+            ].map(tab => (
+              <motion.button
+                key={tab.id}
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setCustomerTab(tab.id)}
+                style={{
+                  padding: '12px',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  backgroundColor: customerTab === tab.id ? THEME.primary : 'transparent',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: customerTab === tab.id ? 'white' : '#999',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: customerTab === tab.id ? '600' : '500',
+                  transition: 'all 0.3s',
+                }}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+              </motion.button>
+            ))}
+          </div>
 
-        <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowAIChat(true)} style={{ position: 'fixed', bottom: '24px', right: '24px', width: '70px', height: '70px', borderRadius: '50%', backgroundColor: THEME.primary, color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 998, fontSize: '28px' }}>
+          <motion.button
+            onClick={handleLogout}
+            style={{
+              padding: '12px',
+              backgroundColor: THEME.danger + '20',
+              color: THEME.danger,
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+            }}
+          >
+            <LogOut size={14} /> Logout
+          </motion.button>
+        </motion.div>
+
+        {/* Main Content Area for Customer Portal */}
+        <motion.div style={{ flex: 1, overflow: 'auto', backgroundColor: THEME.lightBg, display: 'flex', flexDirection: 'column' }}>
+          {/* Header */}
+          <motion.div style={{ padding: window.innerWidth < 768 ? '12px 16px' : '16px 24px', backgroundColor: 'white', borderBottom: `1px solid ${THEME.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div>
+              <h2 style={{ fontSize: window.innerWidth < 768 ? '18px' : '22px', fontWeight: 'bold', color: THEME.dark, margin: 0 }}>
+                {customerTab === 'chat' ? 'Chat Support' : 'File a Complaint'}
+              </h2>
+              <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>
+                {customerTab === 'chat' ? 'Get instant help from our AI assistant' : 'Report any issues with your property'}
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Content */}
+          <motion.div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={customerTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                style={{ height: '100%' }}
+              >
+                {customerTab === 'chat' ? (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ padding: window.innerWidth < 768 ? '16px 12px' : '32px 24px', maxWidth: '900px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                      <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: THEME.dark, margin: '0 0 8px 0' }}>Welcome to SINO Chat Support</h3>
+                      <p style={{ fontSize: '14px', color: '#999', margin: 0 }}>Our AI assistant is available 24/7 to help you. Ask about maintenance, complaints, billing, or any property-related questions.</p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      onClick={() => setShowAIChat(true)}
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        padding: '20px',
+                        margin: '0 auto',
+                        display: 'block',
+                        backgroundColor: THEME.primary,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
+                      }}
+                    >
+                      Start Chat <MessageCircle size={18} style={{ display: 'inline', marginLeft: '8px' }} />
+                    </motion.button>
+                  </motion.div>
+                ) : (
+                  renderFileComplaint()
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
+
+        {/* AI Chat Button - Always Available */}
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          onClick={() => setShowAIChat(true)}
+          style={{
+            position: 'fixed',
+            bottom: window.innerWidth < 768 ? '16px' : '24px',
+            right: window.innerWidth < 768 ? '16px' : '24px',
+            width: window.innerWidth < 768 ? '56px' : '60px',
+            height: window.innerWidth < 768 ? '56px' : '60px',
+            borderRadius: '50%',
+            backgroundColor: THEME.primary,
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 998,
+            fontSize: '28px',
+          }}
+        >
           <MessageCircle size={32} />
         </motion.button>
 
@@ -1977,46 +2921,58 @@ export default function App() {
     { id: 'recommendations', label: 'Recommendations', icon: Lightbulb },
     { id: 'feedback-analysis', label: 'Feedback Analysis', icon: TrendingUp },
   ] : [
-    { id: 'dashboard', label: 'Dashboard', icon: LineIcon },
+    { id: 'dashboard', label: 'My Dashboard', icon: LineIcon },
     { id: 'file-complaint', label: 'File Complaint', icon: FileText },
     { id: 'complaints', label: 'My Complaints', icon: ClipboardList },
+    { id: 'staff-directory', label: 'Contact Staff', icon: Users },
   ]
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', height: '100vh', backgroundColor: THEME.lightBg }}>
-      {/* Sidebar */}
-      <motion.div style={{ width: sidebarOpen ? '280px' : '0', backgroundColor: THEME.dark, color: 'white', transition: 'width 300ms', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: sidebarOpen ? `4px 0 12px rgba(0,0,0,0.2)` : 'none' }}>
-        <div style={{ padding: '24px', borderBottom: `1px solid ${THEME.primary}33` }}>
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>SINO-FAS</h1>
-          <p style={{ fontSize: '11px', color: THEME.light, margin: '8px 0 0 0' }}>{userRole === 'staff' ? 'Staff Portal' : 'Tenant Portal'}</p>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', height: '100vh', backgroundColor: THEME.lightBg, flexDirection: window.innerWidth < 768 ? 'column' : 'row' }}>
+      {/* Sidebar - Mobile Overlay on smaller screens */}
+      {window.innerWidth < 768 && sidebarOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 900 }} />
+      )}
+      <motion.div style={{ width: window.innerWidth < 768 ? (sidebarOpen ? '100%' : '0') : sidebarOpen ? '280px' : '0', backgroundColor: THEME.dark, color: 'white', transition: 'width 300ms', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: sidebarOpen ? `4px 0 12px rgba(0,0,0,0.2)` : 'none', position: window.innerWidth < 768 && sidebarOpen ? 'fixed' : 'relative', zIndex: window.innerWidth < 768 && sidebarOpen ? 999 : 'auto', maxHeight: window.innerWidth < 768 ? '100vh' : 'auto', left: 0, top: 0 }}>
+        <div style={{ padding: '20px', borderBottom: `1px solid ${THEME.primary}33`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: window.innerWidth < 768 ? '16px' : '18px', fontWeight: 'bold', margin: 0 }}>SINO-FAS</h1>
+            <p style={{ fontSize: '10px', color: THEME.light, margin: '6px 0 0 0' }}>{userRole === 'staff' ? 'Staff' : 'Tenant'}</p>
+          </div>
+          {window.innerWidth < 768 && (
+            <motion.button onClick={() => setSidebarOpen(false)} style={{ padding: '4px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: 'white' }}>
+              <X size={20} />
+            </motion.button>
+          )}
         </div>
-        <nav style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <nav style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px', overflowY: window.innerWidth < 768 ? 'auto' : 'visible', maxHeight: window.innerWidth < 768 ? 'calc(100vh - 80px)' : 'auto' }}>
           {tabs.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             return (
-              <motion.button key={tab.id} onClick={() => setActiveTab(tab.id)} whileHover={{ x: 4 }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? THEME.primary : 'transparent', color: 'white', fontWeight: isActive ? '600' : '400', cursor: 'pointer', fontSize: '13px' }}><Icon size={18} /><span>{tab.label}</span></motion.button>
+              <motion.button key={tab.id} onClick={() => { setActiveTab(tab.id); if (window.innerWidth < 768) setSidebarOpen(false) }} whileHover={{ x: 4 }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? THEME.primary : 'transparent', color: 'white', fontWeight: isActive ? '600' : '400', cursor: 'pointer', fontSize: window.innerWidth < 768 ? '12px' : '13px', whiteSpace: 'nowrap' }}><Icon size={18} /><span>{window.innerWidth < 768 ? (tab.label.split(' ')[0]) : tab.label}</span></motion.button>
             )
           })}
         </nav>
       </motion.div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Top Bar */}
-        <div style={{ backgroundColor: 'white', borderBottom: `2px solid ${THEME.light}`, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* Top Bar - Mobile Optimized */}
+        <div style={{ backgroundColor: 'white', borderBottom: `2px solid ${THEME.light}`, padding: window.innerWidth < 768 ? '12px 16px' : '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: window.innerWidth < 768 ? '12px' : '16px' }}>
             <motion.button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>{sidebarOpen ? <X size={20} color={THEME.primary} /> : <Menu size={20} color={THEME.primary} />}</motion.button>
-            <h2 style={{ fontSize: '18px', fontWeight: '600', color: THEME.dark, margin: 0 }}>{tabs.find(t => t.id === activeTab)?.label}</h2>
+            <h2 style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px', fontWeight: '600', color: THEME.dark, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: window.innerWidth < 768 ? '200px' : 'auto' }}>{window.innerWidth < 768 ? (tabs.find(t => t.id === activeTab)?.label.split(' ')[0]) : tabs.find(t => t.id === activeTab)?.label}</h2>
           </div>
-          <motion.button onClick={handleLogout} whileHover={{ scale: 1.05 }} style={{ padding: '8px 16px', backgroundColor: THEME.danger, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}><LogOut size={14} style={{ display: 'inline', marginRight: '6px' }} /> Logout</motion.button>
+          <motion.button onClick={handleLogout} whileHover={{ scale: 1.05 }} style={{ padding: window.innerWidth < 768 ? '6px 12px' : '8px 16px', backgroundColor: THEME.danger, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: window.innerWidth < 768 ? '10px' : '12px', whiteSpace: 'nowrap' }}><LogOut size={14} style={{ display: window.innerWidth < 768 ? 'none' : 'inline', marginRight: '6px' }} /> {window.innerWidth < 768 ? 'Out' : 'Logout'}</motion.button>
         </div>
 
-        {/* Content Area */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          {activeTab === 'dashboard' && renderDashboard()}
+        {/* Content Area - Mobile Scrollable */}
+        <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', msOverflowStyle: '-ms-autohiding-scrollbar' }}>
+          {activeTab === 'dashboard' && (userRole === 'staff' ? renderDashboard() : renderTenantDashboard())}
           {activeTab === 'file-complaint' && renderFileComplaint()}
           {(activeTab === 'complaints' || activeTab === 'my-complaints') && renderComplaints()}
+          {activeTab === 'staff-directory' && renderTenantStaffDirectory()}
           {activeTab === 'contractors' && renderContractorsDirectory()}
           {activeTab === 'recommendations' && renderRecommendations()}
           {activeTab === 'feedback-analysis' && renderFeedbackAnalysis()}
@@ -2028,7 +2984,7 @@ export default function App() {
       <AnimatePresence>{selectedRecommendation && renderRecommendationDetail()}</AnimatePresence>
       <AnimatePresence>{showAIChat && renderAIChat()}</AnimatePresence>
 
-      <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowAIChat(!showAIChat)} style={{ position: 'fixed', bottom: '24px', right: '24px', width: '60px', height: '60px', borderRadius: '50%', backgroundColor: THEME.primary, color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 998 }}><MessageCircle size={24} /></motion.button>
+      <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowAIChat(!showAIChat)} style={{ position: 'fixed', bottom: window.innerWidth < 768 ? '16px' : '24px', right: window.innerWidth < 768 ? '16px' : '24px', width: window.innerWidth < 768 ? '56px' : '60px', height: window.innerWidth < 768 ? '56px' : '60px', borderRadius: '50%', backgroundColor: THEME.primary, color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 998 }}><MessageCircle size={24} /></motion.button>
     </motion.div>
   )
 }
