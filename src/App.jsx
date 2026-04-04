@@ -65,18 +65,23 @@ const callOpenRouterAPI = async (message, retryCount = 0) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('❌ OpenRouter API Error - Status:', response.status)
-      console.error('❌ Response:', errorText)
+      console.error('❌ Error Details:', errorText)
+      console.error('❌ API Key Used: REDACTED')
       
       if (retryCount < 2 && (response.status >= 500 || response.status === 429)) {
         console.log(`🔄 Retry attempt ${retryCount + 1}/2 for OpenRouter API...`)
         await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)))
         return callOpenRouterAPI(message, retryCount + 1)
       }
-      throw new Error(`OpenRouter API Error ${response.status}: ${errorText.substring(0, 100)}`)
+      
+      const errorMsg = `OpenRouter Error ${response.status}`
+      console.error('🛑 Fallback triggered:', errorMsg)
+      throw new Error(errorMsg)
     }
     
     const data = await response.json()
-    console.log('✅ OpenRouter Response Success!')
+    console.log('✅ OpenRouter API Success!')
+    console.log('📊 Response preview:', data.choices?.[0]?.message?.content?.substring(0, 150))
     
     const content = data.choices?.[0]?.message?.content?.trim()
     
