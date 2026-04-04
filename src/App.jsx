@@ -39,20 +39,21 @@ const callOpenRouterAPI = async (message, retryCount = 0) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://sino-fas.local',
+        'HTTP-Referer': 'https://sino-fas.vercel.app',
         'X-Title': 'SINO-FAS Property Management',
       },
       body: JSON.stringify({
         model: 'deepseek/deepseek-chat',
         messages: [{ 
           role: 'user', 
-          content: `You are a professional property management AI assistant. Respond concisely and professionally in 2-3 sentences. User message: "${message}"` 
+          content: message
         }],
-        temperature: 0.7,
-        max_tokens: 300,
-        top_p: 0.9,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0
+        temperature: 0.8,
+        max_tokens: 2000,
+        top_p: 0.95,
+        top_k: 40,
+        frequency_penalty: 0.5,
+        presence_penalty: 0.1
       }),
       signal: controller.signal,
     })
@@ -63,18 +64,19 @@ const callOpenRouterAPI = async (message, retryCount = 0) => {
     
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('❌ OpenRouter Error Response:', response.status, errorText)
+      console.error('❌ OpenRouter API Error - Status:', response.status)
+      console.error('❌ Response:', errorText)
       
       if (retryCount < 2 && (response.status >= 500 || response.status === 429)) {
-        console.log(`🔄 Retry attempt ${retryCount + 1} for OpenRouter API...`)
+        console.log(`🔄 Retry attempt ${retryCount + 1}/2 for OpenRouter API...`)
         await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)))
         return callOpenRouterAPI(message, retryCount + 1)
       }
-      throw new Error(`API Error: ${response.status}`)
+      throw new Error(`OpenRouter API Error ${response.status}: ${errorText.substring(0, 100)}`)
     }
     
     const data = await response.json()
-    console.log('✓ OpenRouter Response received:', data)
+    console.log('✅ OpenRouter Response Success!')
     
     const content = data.choices?.[0]?.message?.content?.trim()
     
@@ -1681,16 +1683,19 @@ export default function App() {
 
     setGeneratingDescription(true)
     try {
-      const prompt = `You are a property management expert. A tenant has written this complaint description. Please improve and expand it to be more clear and detailed for property management.
-Tenant's input: "${userInput}"
+      const prompt = `You are an expert property management specialist. A tenant submitted this complaint. Your job is to transform it into a professional, detailed description that helps maintenance staff understand the issue quickly.
 
-Provide an improved version that:
-- Is 2-3 sentences clear and professional
-- Includes specific details and impact
-- Is ready to submit to property management
-- Keeps the tenant's original meaning but improves clarity
+Tenant's raw input: "${userInput}"
 
-Just provide the improved description, nothing else.`
+Requirements:
+1. Be 3-4 sentences (add specific details, impact, and urgency)
+2. Use professional property management language
+3. Include location/area affected if possible
+4. Mention safety concerns if any
+5. Keep tenant's original intent but make it clearer
+6. Format: Start with WHAT, then WHERE, then WHEN/IMPACT
+
+Output ONLY the improved description, no other text.`
 
       const response = await callOpenRouterAPI(prompt)
       setGeneratedDescription(response)
@@ -1735,47 +1740,53 @@ Just provide the improved description, nothing else.`
   async function generateComplaintRecommendations(complaint) {
     setLoadingAIRec(true)
     try {
-      const prompt = `You are a property management AI expert. For the following complaint, provide step-by-step recommendations in this EXACT format with emojis and clear numbering:
+      const categoryLabel = CATEGORIES[complaint.category]?.label || 'General'
+      const prompt = `You are an expert property manager. Provide SPECIFIC, actionable recommendations for this complaint.
+
+COMPLAINT:
+Title: ${complaint.title}
+Category: ${categoryLabel}
+Urgency: ${complaint.urgency}
+Description: ${complaint.description}
+
+Format your response EXACTLY as follows (use these emojis):
 
 📋 IMMEDIATE ACTIONS (within 24h):
-1) [First action step]
-2) [Second action step]
-3) [Third action step]
-4) [Fourth action step]
-5) [Fifth action step]
+1) Specific action for this complaint
+2) Next specific step
+3) Third specific action
+4) Fourth step specific to the issue
+5) Fifth follow-up step
 
 ⚠️ SAFETY WARNINGS:
-1) [First safety concern]
-2) [Second safety concern]
-3) [Third safety concern]
+1) Specific safety risk for this issue
+2) Another safety concern
+3) Third safety warning
 
 🔔 ESCALATION TRIGGERS:
-1) [First trigger condition]
-2) [Second trigger condition]
-3) [Third trigger condition]
+1) Specific condition that needs escalation
+2) When to escalate this type of complaint
+3) Critical threshold
 
 💬 TENANT COMMUNICATION:
-1) [How to contact tenant]
-2) [What to tell them]
-3) [Follow-up communication]
+1) How to contact the tenant
+2) What specific message to send
+3) Follow-up communication plan
 
 🔍 FOLLOW-UP INSPECTION:
-1) [When to inspect]
-2) [What to check]
-3) [Verification required]
+1) When to inspect this issue
+2) What to specifically check
+3) How to verify resolution
 
-Complaint Details:
-- Title: ${complaint.title}
-- Category: ${CATEGORIES[complaint.category]?.label}
-- Urgency: ${complaint.urgency}
-- Description: ${complaint.description}
+Be VERY specific and reference the actual complaint. Do NOT use generic phrases.`
 
-Be VERY specific and actionable. Each step should be clear enough for both tenants and staff to understand.`
-
+      console.log('🚀 Sending recommendation request for:', complaint.title)
       const response = await callOpenRouterAPI(prompt)
+      console.log('✅ Got AI recommendations:', response.substring(0, 100))
       setAiRecommendations(response)
     } catch (error) {
-      console.error('Failed to generate recommendations:', error)
+      console.error('⚠️ AI Recommendations Failed:', error.message)
+      console.log('📋 Falling back to knowledge base for category:', complaint.category)
       // Generate formatted fallback recommendations
       const generateFallback = (categoryKey) => {
         const fallbacks = {
