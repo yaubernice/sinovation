@@ -758,88 +758,143 @@ export default function App() {
                   </div>
 
                   {/* Parse recommendations by sections - IMPROVED */}
-                  {parseAIRecommendations(aiRecommendations).map((section, idx) => (
-                    <motion.div 
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      style={{
-                        padding: '18px',
-                        backgroundColor: 'white',
-                        borderRadius: '10px',
-                        border: `2px solid ${
-                          section.emoji === '🚨' ? THEME.danger :
-                          section.emoji === '⚠️' ? THEME.warning :
-                          section.emoji === '📋' ? THEME.primary :
-                          section.emoji === '💬' ? THEME.secondary :
-                          section.emoji === '🔍' ? THEME.success :
-                          THEME.light
-                        }`,
-                        borderLeft: `5px solid ${
-                          section.emoji === '🚨' ? THEME.danger :
-                          section.emoji === '⚠️' ? THEME.warning :
-                          section.emoji === '📋' ? THEME.primary :
-                          section.emoji === '💬' ? THEME.secondary :
-                          section.emoji === '🔍' ? THEME.success :
-                          THEME.light
-                        }`
-                      }}
-                    >
-                      {/* Section Title */}
-                      <h5 style={{
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: THEME.dark,
-                        margin: '0 0 14px 0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <span style={{ fontSize: '18px' }}>{section.emoji}</span>
-                        {section.title}
-                      </h5>
-
-                      {/* Numbered Items */}
-                      <div style={{ display: 'grid', gap: '10px', marginLeft: '4px' }}>
-                        {section.items.map((item, itemIdx) => (
-                          <div key={itemIdx} style={{
-                            display: 'flex',
-                            gap: '12px',
-                            alignItems: 'flex-start',
+                  {(() => {
+                    const parsedSections = parseAIRecommendations(aiRecommendations)
+                    console.log('🎯 Parsed sections count:', parsedSections.length)
+                    
+                    if (parsedSections.length === 0) {
+                      // Fallback: Show raw text if parsing fails
+                      console.log('⚠️ No sections parsed, showing raw text')
+                      return (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          style={{
+                            padding: '18px',
+                            backgroundColor: 'white',
+                            borderRadius: '10px',
+                            border: `2px solid ${THEME.warning}`,
+                            whiteSpace: 'pre-wrap',
                             fontSize: '13px',
-                            lineHeight: '1.5',
-                            color: THEME.text
-                          }}>
-                            <div style={{
-                              minWidth: '28px',
-                              height: '28px',
-                              borderRadius: '50%',
-                              backgroundColor:
-                                section.emoji === '🚨' ? THEME.danger :
-                                section.emoji === '⚠️' ? THEME.warning :
-                                section.emoji === '📋' ? THEME.primary :
-                                section.emoji === '💬' ? THEME.secondary :
-                                section.emoji === '🔍' ? THEME.success :
-                                THEME.light,
-                              color: 'white',
+                            lineHeight: '1.6',
+                            color: THEME.text,
+                            fontFamily: 'monospace'
+                          }}
+                        >
+                          {aiRecommendations}
+                        </motion.div>
+                      )
+                    }
+                    
+                    return parsedSections.map((section, idx) => (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        style={{
+                          padding: '18px',
+                          backgroundColor: 'white',
+                          borderRadius: '10px',
+                          border: `2px solid ${
+                            section.emoji === '🚨' ? THEME.danger :
+                            section.emoji === '⚠️' ? THEME.warning :
+                            section.emoji === '📋' ? THEME.primary :
+                            section.emoji === '💬' ? THEME.secondary :
+                            section.emoji === '🔍' ? THEME.success :
+                            section.emoji === '🛡️' ? THEME.danger :
+                            section.emoji === '💡' ? THEME.primary :
+                            section.emoji === '📞' ? THEME.warning :
+                            section.emoji === '✅' ? THEME.success :
+                            section.emoji === '🔧' ? THEME.secondary :
+                            section.emoji === '⏱️' ? THEME.primary :
+                            section.emoji === '👷' ? THEME.secondary :
+                            section.emoji === '📧' ? THEME.primary :
+                            section.emoji === '🚨' ? THEME.danger :
+                            THEME.light
+                          }`,
+                          borderLeft: `5px solid ${
+                            section.emoji === '🚨' ? THEME.danger :
+                            section.emoji === '⚠️' ? THEME.warning :
+                            section.emoji === '📋' ? THEME.primary :
+                            section.emoji === '💬' ? THEME.secondary :
+                            section.emoji === '🔍' ? THEME.success :
+                            section.emoji === '🛡️' ? THEME.danger :
+                            section.emoji === '💡' ? THEME.primary :
+                            section.emoji === '📞' ? THEME.warning :
+                            section.emoji === '✅' ? THEME.success :
+                            section.emoji === '🔧' ? THEME.secondary :
+                            section.emoji === '⏱️' ? THEME.primary :
+                            section.emoji === '👷' ? THEME.secondary :
+                            section.emoji === '📧' ? THEME.primary :
+                            section.emoji === '🚨' ? THEME.danger :
+                            THEME.light
+                          }`
+                        }}
+                      >
+                        {/* Section Title */}
+                        <h5 style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: THEME.dark,
+                          margin: '0 0 14px 0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{ fontSize: '18px' }}>{section.emoji}</span>
+                          {section.title}
+                        </h5>
+
+                        {/* Numbered Items */}
+                        <div style={{ display: 'grid', gap: '10px', marginLeft: '4px' }}>
+                          {section.items.map((item, itemIdx) => (
+                            <div key={itemIdx} style={{
                               display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 'bold',
-                              fontSize: '12px',
-                              flexShrink: 0
+                              gap: '12px',
+                              alignItems: 'flex-start',
+                              fontSize: '13px',
+                              lineHeight: '1.5',
+                              color: THEME.text
                             }}>
-                              {itemIdx + 1}
+                              <div style={{
+                                minWidth: '28px',
+                                height: '28px',
+                                borderRadius: '50%',
+                                backgroundColor:
+                                  section.emoji === '🚨' ? THEME.danger :
+                                  section.emoji === '⚠️' ? THEME.warning :
+                                  section.emoji === '📋' ? THEME.primary :
+                                  section.emoji === '💬' ? THEME.secondary :
+                                  section.emoji === '🔍' ? THEME.success :
+                                  section.emoji === '🛡️' ? THEME.danger :
+                                  section.emoji === '💡' ? THEME.primary :
+                                  section.emoji === '📞' ? THEME.warning :
+                                  section.emoji === '✅' ? THEME.success :
+                                  section.emoji === '🔧' ? THEME.secondary :
+                                  section.emoji === '⏱️' ? THEME.primary :
+                                  section.emoji === '👷' ? THEME.secondary :
+                                  section.emoji === '📧' ? THEME.primary :
+                                  THEME.light,
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 'bold',
+                                fontSize: '12px',
+                                flexShrink: 0
+                              }}>
+                                {itemIdx + 1}
+                              </div>
+                              <p style={{ margin: '4px 0', flex: 1 }}>
+                                {item}
+                              </p>
                             </div>
-                            <p style={{ margin: '4px 0', flex: 1 }}>
-                              {item}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  ))}
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))
+                  })()}
                 </motion.div>
               )}
 
@@ -1806,47 +1861,70 @@ Output ONLY the formatted description with heading and numbered points. No other
 
   // Helper to parse recommendations properly
   const parseAIRecommendations = (text) => {
-    if (!text) return []
+    if (!text) {
+      console.log('❌ parseAIRecommendations: Empty text')
+      return []
+    }
     
-    // Split by emoji sections (📋, ⚠️, 🔔, 💬, 🔍)
-    const sections = text.split(/\n(?=[\uD800-\uDBFF][\uDC00-\uDFFF]\s|\d+\s?[\.\)]|\d+\s?\d+\s?[\.\)])/)
+    console.log('📊 Parsing AI recommendations, text length:', text.length)
+    console.log('📝 Text preview:', text.substring(0, 200))
     
-    return sections.map((section, idx) => {
-      const lines = section.split('\n').filter(l => l.trim())
-      if (lines.length === 0) return null
+    // Split by emoji sections (📋, ⚠️, 🔔, 💬, 🔍, 🛡️, 💡, 📞, ✅, 🔧, ⏱️, 👷, 📧, 🔍, 🚨)
+    const emojiPattern = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g
+    const sections = []
+    let currentSection = null
+    
+    const lines = text.split('\n')
+    console.log('📋 Total lines:', lines.length)
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
       
-      // Extract title line and items
-      const titleLine = lines[0]
-      const emojiMatch = titleLine.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF])\s*(.+?)(?:\s*:|$)/)
-      const emoji = emojiMatch ? emojiMatch[1] : ''
-      const title = emojiMatch ? cleanMarkdown(emojiMatch[2]) : cleanMarkdown(titleLine)
+      // Check if line starts with emoji
+      const emojiMatch = line.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF])\s*(.+?)(?:\s*:|$)/)
       
-      // Extract numbered items
-      const items = []
-      let currentItem = ''
-      
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim()
+      if (emojiMatch) {
+        // New section header
+        if (currentSection && currentSection.items.length > 0) {
+          sections.push(currentSection)
+        }
+        const emoji = emojiMatch[1]
+        const title = cleanMarkdown(emojiMatch[2])
+        console.log(`🆕 New section: ${emoji} ${title}`)
+        currentSection = { emoji, title, items: [] }
+      } else if (currentSection) {
+        // Check if it's a numbered item
         const numMatch = line.match(/^(\d+[\.\)])\s*(.+)$/)
-        
         if (numMatch) {
-          if (currentItem) items.push(currentItem)
-          currentItem = cleanMarkdown(numMatch[2])
-        } else if (line && currentItem) {
-          currentItem += ' ' + cleanMarkdown(line)
+          const item = cleanMarkdown(numMatch[2])
+          currentSection.items.push(item)
+          console.log(`  └─ Item: ${item.substring(0, 50)}...`)
+        } else if (line && currentSection.items.length > 0) {
+          // Continuation of previous item
+          currentSection.items[currentSection.items.length - 1] += ' ' + cleanMarkdown(line)
         }
       }
-      if (currentItem) items.push(currentItem)
-      
-      return { emoji, title, items, sectionIdx: idx }
-    }).filter(s => s && (s.items.length > 0 || s.title))
+    }
+    
+    // Add last section
+    if (currentSection && currentSection.items.length > 0) {
+      sections.push(currentSection)
+    }
+    
+    console.log(`✅ Parsed ${sections.length} sections total`)
+    return sections
   }
 
   // AI Recommendations & Safety Measures for Complaints
   async function generateComplaintRecommendations(complaint, role = 'staff') {
+    console.log('🎯 generateComplaintRecommendations called with role:', role)
+    console.log('📋 Complaint:', complaint)
+    
     setLoadingAIRec(true)
     try {
       const categoryLabel = CATEGORIES[complaint.category]?.label || 'General'
+      console.log('📂 Category label:', categoryLabel)
       
       // TENANT RECOMMENDATIONS - Focus on what they can do and safety
       const tenantPrompt = `You are an expert property manager providing guidance to a tenant about their complaint.
@@ -1929,12 +2007,21 @@ Be VERY specific to the complaint type. Include exact diagnostic questions or te
 
       const prompt = role === 'tenant' ? tenantPrompt : staffPrompt
 
-      console.log(`🚀 Sending ${role} recommendations for:`, complaint.title)
+      console.log(`🚀 Calling API with ${role} prompt`)
       const response = await callOpenRouterAPI(prompt)
-      console.log(`✅ Got ${role} recommendations:`, response.substring(0, 100))
+      console.log(`✅ Got ${role} recommendations, length:`, response?.length)
+      console.log(`📝 Response preview:`, response?.substring(0, 150))
+      
+      if (!response) {
+        throw new Error('Empty response from API')
+      }
+      
+      console.log('📊 Setting aiRecommendations state...')
       setAiRecommendations(response)
+      console.log('✅ State updated successfully')
     } catch (error) {
       console.error(`⚠️ ${role} Recommendations Failed:`, error.message)
+      console.log('❌ Full error:', error)
       console.log('📋 Falling back to knowledge base for category:', complaint.category)
       alert(`⚠️ API Error (using fallback):\n${error.message}\n\nCheck console for details.`)
       // Generate formatted fallback recommendations
