@@ -81,9 +81,15 @@ const callOpenRouterAPI = async (message, retryCount = 0) => {
     
     const data = await response.json()
     console.log('✅ OpenRouter API Success!')
+    console.log('📊 Full Response:', JSON.stringify(data, null, 2))
     console.log('📊 Response preview:', data.choices?.[0]?.message?.content?.substring(0, 150))
     
     const content = data.choices?.[0]?.message?.content?.trim()
+    
+    if (!content) {
+      console.error('❌ No content in API response:', data)
+      throw new Error('API returned empty content')
+    }
     
     if (content && content.length > 10) {
       console.log('✓ OpenRouter API successful:', content.substring(0, 60) + '...')
@@ -1707,7 +1713,7 @@ Output ONLY the improved description, no other text.`
       setNewComplaint(prev => ({ ...prev, description: response }))
     } catch (error) {
       console.error('Failed to generate description:', error)
-      alert('Could not generate description. Please describe the issue manually.')
+      alert(`❌ Description Generation Failed:\n${error.message}\n\nCheck console for details.`)
     }
     setGeneratingDescription(false)
   }
@@ -1792,6 +1798,7 @@ Be VERY specific and reference the actual complaint. Do NOT use generic phrases.
     } catch (error) {
       console.error('⚠️ AI Recommendations Failed:', error.message)
       console.log('📋 Falling back to knowledge base for category:', complaint.category)
+      alert(`⚠️ API Error (using fallback):\n${error.message}\n\nCheck console for details.`)
       // Generate formatted fallback recommendations
       const generateFallback = (categoryKey) => {
         const fallbacks = {
