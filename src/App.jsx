@@ -49,7 +49,7 @@ const callOpenRouterAPI = async (message, retryCount = 0) => {
           content: message
         }],
         temperature: 0.8,
-        max_tokens: 2000,
+        max_tokens: 800,
         top_p: 0.95,
         top_k: 40,
         frequency_penalty: 0.5,
@@ -1873,14 +1873,11 @@ Output ONLY the formatted description with heading and numbered points. No other
     }
     
     console.log('📊 Parsing AI recommendations, text length:', text.length)
-    console.log('📝 Text preview:', text.substring(0, 200))
     
-    // Split by emoji sections (📋, ⚠️, 🔔, 💬, 🔍, 🛡️, 💡, 📞, ✅, 🔧, ⏱️, 👷, 📧, 🔍, 🚨)
     const sections = []
     let currentSection = null
     
     const lines = text.split('\n')
-    console.log('📋 Total lines:', lines.length)
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -1896,15 +1893,18 @@ Output ONLY the formatted description with heading and numbered points. No other
         }
         const emoji = emojiMatch[1]
         const title = cleanMarkdown(emojiMatch[2])
-        console.log(`🆕 New section: ${emoji} ${title}`)
         currentSection = { emoji, title, items: [] }
       } else if (currentSection) {
-        // Check if it's a numbered item
-        const numMatch = line.match(/^(\d+[\.\)])\s*(.+)$/)
-        if (numMatch) {
+        // Check if it's a bullet or dash item
+        const bulletMatch = line.match(/^[-•]\s*(.+)$/)
+        if (bulletMatch) {
+          const item = cleanMarkdown(bulletMatch[1])
+          currentSection.items.push(item)
+        } else if (line.match(/^(\d+[\.\)])\s*(.+)$/)) {
+          // Or numbered item
+          const numMatch = line.match(/^(\d+[\.\)])\s*(.+)$/)
           const item = cleanMarkdown(numMatch[2])
           currentSection.items.push(item)
-          console.log(`  └─ Item ${currentSection.items.length}: ${item.substring(0, 50)}...`)
         } else if (line && currentSection.items.length > 0) {
           // Continuation of previous item
           const cleaned = cleanMarkdown(line)
@@ -1918,8 +1918,7 @@ Output ONLY the formatted description with heading and numbered points. No other
       sections.push(currentSection)
     }
     
-    console.log(`✅ Parsed ${sections.length} sections total`)
-    sections.forEach((s, i) => console.log(`   Section ${i}: ${s.emoji} ${s.title} (${s.items.length} items)`))
+    console.log(`✅ Parsed ${sections.length} sections`)
     return sections
   }
 
@@ -1934,83 +1933,55 @@ Output ONLY the formatted description with heading and numbered points. No other
       console.log('📂 Category label:', categoryLabel)
       
       // TENANT RECOMMENDATIONS - Focus on what they can do and safety
-      const tenantPrompt = `You are an expert property manager providing guidance to a tenant about their complaint.
+      const tenantPrompt = `You are a property maintenance advisor. Provide BRIEF, direct guidance for this tenant complaint.
 
-TENANT'S COMPLAINT:
+COMPLAINT:
 Title: ${complaint.title}
 Category: ${categoryLabel}
-Urgency: ${complaint.urgency}
 Description: ${complaint.description}
 
-Format your response with ONE CLEAR HEADING and numbered steps grouped by topic:
+Respond with EXACTLY 3 sections, each with 2-3 bullet points max. Be direct and concise:
 
-🛡️ IMMEDIATE SAFETY TIPS
-1) First safety precaution for this issue
-2) Second safety action they should take
-3) Third safety guideline
+🛡️ SAFETY FIRST
+- One key safety action
 
-💡 WHAT YOU CAN DO WHILE WAITING
-1) First thing tenant can do to help or prevent worsening
-2) Second temporary measure
-3) Third action to take
+💡 WHAT TO DO NOW
+- Immediate action (1 sentence max)
+- How long to wait (timeframe)
 
-📞 WHEN TO ESCALATE (Contact Management)
-1) Specific sign that it's urgent and needs immediate attention
-2) What to tell them when calling
-3) When to expect a response (timeframe)
+📞 WHEN TO CALL MANAGEMENT
+- Specific trigger that requires immediate attention
 
-✅ EXPECTED TIMELINE
-1) Estimated time for first inspection
-2) Typical repair timeline for this type of issue
-3) When you should hear back from maintenance
-
-Be VERY specific to their complaint type and situation. Use simple, easy-to-understand language.`
+Keep each point to 1-2 sentences. No explanations, just facts.`
 
       // STAFF RECOMMENDATIONS - Focus on diagnosis, repair, and process
-      const staffPrompt = `You are an expert property manager providing technical guidance to maintenance staff.
+      const staffPrompt = `You are a property maintenance professional. Provide BRIEF, actionable guidance for this repair.
 
-COMPLAINT TO DIAGNOSE & FIX:
+COMPLAINT:
 Title: ${complaint.title}
 Category: ${categoryLabel}
-Urgency: ${complaint.urgency}
+Unit: ${complaint.tenantUnit}
 Description: ${complaint.description}
-From Unit: ${complaint.tenantUnit}
 
-Format your response with ONE CLEAR HEADING and numbered steps grouped by topic:
+Respond with EXACTLY 4 sections, each with 2-3 items max. Be professional and direct:
 
-🔧 DIAGNOSTIC STEPS
-1) First diagnostic test or observation
-2) Second diagnostic step
-3) Third diagnostic check
-4) How to confirm the issue
+🔧 DIAGNOSE
+- How to confirm the issue (1 sentence)
+- What tools/materials needed
 
-⏱️ TIME ESTIMATE & MATERIALS
-1) Estimated repair time
-2) Required tools or materials
-3) Whether this needs a contractor or internal staff
+👷 FIX IT
+- Repair steps (brief)
+- Estimated time
 
-👷 REPAIR PROCEDURE
-1) First step of the repair
-2) Second procedure step
-3) Third step
-4) Final quality check
+📧 TELL TENANT
+- What to say about the issue
+- When repair will happen
 
-📧 TENANT COMMUNICATION
-1) What to tell the tenant about the issue
-2) When to contact them (before/after)
-3) When to inform them of completion
+⏱️ FOLLOW UP
+- When to verify completion
+- What to document
 
-🔍 FOLLOW-UP
-1) When to schedule follow-up inspection
-2) What to verify during follow-up
-3) How to document completion
-
-🚨 CONTRACTORS TO CONTACT (if needed)
-1) Type of contractor needed for this issue
-2) Typical cost range estimate
-3) Emergency procedures
-
-Be VERY specific to the complaint type. Include exact diagnostic questions or tests.`
+Keep each point to 1-2 sentences. No lengthy explanations.`
 
       const prompt = role === 'tenant' ? tenantPrompt : staffPrompt
 
