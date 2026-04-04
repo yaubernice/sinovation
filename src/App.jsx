@@ -778,10 +778,11 @@ export default function App() {
                             fontSize: '13px',
                             lineHeight: '1.6',
                             color: THEME.text,
-                            fontFamily: 'monospace'
+                            fontFamily: 'Arial',
+                            wordBreak: 'break-word'
                           }}
                         >
-                          {aiRecommendations}
+                          {cleanMarkdown(aiRecommendations)}
                         </motion.div>
                       )
                     }
@@ -843,19 +844,20 @@ export default function App() {
                           gap: '8px'
                         }}>
                           <span style={{ fontSize: '18px' }}>{section.emoji}</span>
-                          {section.title}
+                          {cleanMarkdown(section.title)}
                         </h5>
 
                         {/* Numbered Items */}
-                        <div style={{ display: 'grid', gap: '10px', marginLeft: '4px' }}>
+                        <div style={{ display: 'grid', gap: '12px', marginLeft: '0px' }}>
                           {section.items.map((item, itemIdx) => (
                             <div key={itemIdx} style={{
                               display: 'flex',
                               gap: '12px',
                               alignItems: 'flex-start',
                               fontSize: '13px',
-                              lineHeight: '1.5',
-                              color: THEME.text
+                              lineHeight: '1.6',
+                              color: THEME.text,
+                              padding: '8px 0'
                             }}>
                               <div style={{
                                 minWidth: '28px',
@@ -886,8 +888,8 @@ export default function App() {
                               }}>
                                 {itemIdx + 1}
                               </div>
-                              <p style={{ margin: '4px 0', flex: 1 }}>
-                                {item}
+                              <p style={{ margin: '0px', flex: 1, paddingTop: '2px' }}>
+                                {cleanMarkdown(item)}
                               </p>
                             </div>
                           ))}
@@ -1851,11 +1853,15 @@ Output ONLY the formatted description with heading and numbered points. No other
   const cleanMarkdown = (text) => {
     if (!text) return ''
     return text
-      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove **bold**
-      .replace(/\*(.+?)\*/g, '$1')     // Remove *italic*
-      .replace(/###\s*/g, '')           // Remove ### headers
-      .replace(/##\s*/g, '')            // Remove ## headers
-      .replace(/#\s*/g, '')             // Remove # headers
+      .replace(/\*\*(.+?)\*\*/g, '$1')     // Remove **bold**
+      .replace(/\*(.+?)\*/g, '$1')        // Remove *italic*
+      .replace(/`([^`]+)`/g, '$1')        // Remove `code`
+      .replace(/###\s+/g, '')             // Remove ### headers
+      .replace(/##\s+/g, '')              // Remove ## headers
+      .replace(/#\s+/g, '')               // Remove # headers
+      .replace(/^\*\s+/gm, '')            // Remove bullet points
+      .replace(/^\-\s+/gm, '')            // Remove dash bullets
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove markdown links
       .trim()
   }
 
@@ -1870,7 +1876,6 @@ Output ONLY the formatted description with heading and numbered points. No other
     console.log('📝 Text preview:', text.substring(0, 200))
     
     // Split by emoji sections (📋, ⚠️, 🔔, 💬, 🔍, 🛡️, 💡, 📞, ✅, 🔧, ⏱️, 👷, 📧, 🔍, 🚨)
-    const emojiPattern = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g
     const sections = []
     let currentSection = null
     
@@ -1899,10 +1904,11 @@ Output ONLY the formatted description with heading and numbered points. No other
         if (numMatch) {
           const item = cleanMarkdown(numMatch[2])
           currentSection.items.push(item)
-          console.log(`  └─ Item: ${item.substring(0, 50)}...`)
+          console.log(`  └─ Item ${currentSection.items.length}: ${item.substring(0, 50)}...`)
         } else if (line && currentSection.items.length > 0) {
           // Continuation of previous item
-          currentSection.items[currentSection.items.length - 1] += ' ' + cleanMarkdown(line)
+          const cleaned = cleanMarkdown(line)
+          currentSection.items[currentSection.items.length - 1] += ' ' + cleaned
         }
       }
     }
@@ -1913,6 +1919,7 @@ Output ONLY the formatted description with heading and numbered points. No other
     }
     
     console.log(`✅ Parsed ${sections.length} sections total`)
+    sections.forEach((s, i) => console.log(`   Section ${i}: ${s.emoji} ${s.title} (${s.items.length} items)`))
     return sections
   }
 
