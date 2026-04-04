@@ -722,27 +722,6 @@ export default function App() {
                 )}
               </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                onClick={testAPIConnection}
-                style={{
-                  padding: '12px 16px',
-                  backgroundColor: THEME.primary,
-                  color: 'white',
-                  border: '2px solid ' + THEME.warning,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '11px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-              >
-                🧪 Test API
-              </motion.button>
-
               {/* AI Recommendations Display - Clear Step Format */}
               {aiRecommendations && (
                 <motion.div
@@ -1068,21 +1047,34 @@ export default function App() {
               />
               {generatedDescription && (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }} 
+                  initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
                   style={{ 
-                    marginTop: '8px', 
-                    padding: '10px', 
+                    marginTop: '12px', 
+                    padding: '16px', 
                     backgroundColor: THEME.success + '15', 
-                    borderRadius: '6px', 
-                    border: `1px solid ${THEME.success}40`,
-                    fontSize: '11px',
-                    color: THEME.text,
-                    textAlign: 'center',
-                    fontWeight: '500'
+                    borderRadius: '8px', 
+                    border: `2px solid ${THEME.success}`,
+                    borderLeft: `5px solid ${THEME.success}`
                   }}
                 >
-                  ✓ Description improved by AI
+                  <h5 style={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: THEME.success,
+                    margin: '0 0 10px 0',
+                  }}>
+                    ✅ Professional Description
+                  </h5>
+                  <p style={{
+                    fontSize: '13px',
+                    color: THEME.text,
+                    margin: 0,
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {generatedDescription}
+                  </p>
                 </motion.div>
               )}
             </div>
@@ -1704,18 +1696,32 @@ export default function App() {
 Tenant's raw input: "${userInput}"
 
 Requirements:
-1. Be 3-4 sentences (add specific details, impact, and urgency)
-2. Use professional property management language
-3. Include location/area affected if possible
-4. Mention safety concerns if any
-5. Keep tenant's original intent but make it clearer
-6. Format: Start with WHAT, then WHERE, then WHEN/IMPACT
+1. Create a PROFESSIONAL DESCRIPTION with exactly this format:
+   - START with ONE CLEAR TITLE/HEADING (e.g., "Plumbing Issue: Water Leak in Kitchen")
+   - THEN provide numbered details (1, 2, 3, etc.) covering:
+     1. What exactly is the problem?
+     2. Where is it located?
+     3. When did it start?
+     4. How severe/urgent is it?
+     5. Safety concerns (if any)?
 
-Output ONLY the improved description, no other text.`
+2. Use professional property management language
+3. Keep tenant's original intent but make it clearer
+4. Remove any markdown formatting (**bold**, ##headers, etc.)
+
+Format example:
+Bathroom Fixture Malfunction: Persistent Dripping Faucet
+1. The hot water faucet in the master bathroom has been dripping continuously for 3 days
+2. Located at the bathroom sink, right side handle
+3. Started after the apartment's cold spell when pipes froze temporarily
+4. Not an emergency but wastes water; moderate severity
+5. No immediate safety concern, but may cause water damage if ignored
+
+Output ONLY the formatted description with heading and numbered points. No other text.`
 
       const response = await callOpenRouterAPI(prompt)
       setGeneratedDescription(response)
-      setNewComplaint(prev => ({ ...prev, description: response }))
+      // Don't update textarea - just show in the display section
     } catch (error) {
       console.error('Failed to generate description:', error)
       alert(`❌ Description Generation Failed:\n${error.message}\n\nCheck console for details.`)
