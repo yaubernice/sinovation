@@ -778,105 +778,89 @@ export default function App() {
                     </h4>
                   </div>
 
-                  {/* Parse recommendations by sections */}
-                  {aiRecommendations.split('\n\n').map((section, idx) => {
-                    // Extract emoji and title if exists - match common emojis
-                    const emojiMatch = section.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[^:\n])\s*(.+?):/);
-                    const emoji = emojiMatch ? emojiMatch[1] : '';
-                    const title = emojiMatch ? emojiMatch[2] : '';
-                    const content = emojiMatch ? section.substring(emojiMatch[0].length).trim() : section;
+                  {/* Parse recommendations by sections - IMPROVED */}
+                  {parseAIRecommendations(aiRecommendations).map((section, idx) => (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      style={{
+                        padding: '18px',
+                        backgroundColor: 'white',
+                        borderRadius: '10px',
+                        border: `2px solid ${
+                          section.emoji === '🚨' ? THEME.danger :
+                          section.emoji === '⚠️' ? THEME.warning :
+                          section.emoji === '📋' ? THEME.primary :
+                          section.emoji === '💬' ? THEME.secondary :
+                          section.emoji === '🔍' ? THEME.success :
+                          THEME.light
+                        }`,
+                        borderLeft: `5px solid ${
+                          section.emoji === '🚨' ? THEME.danger :
+                          section.emoji === '⚠️' ? THEME.warning :
+                          section.emoji === '📋' ? THEME.primary :
+                          section.emoji === '💬' ? THEME.secondary :
+                          section.emoji === '🔍' ? THEME.success :
+                          THEME.light
+                        }`
+                      }}
+                    >
+                      {/* Section Title */}
+                      <h5 style={{
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: THEME.dark,
+                        margin: '0 0 14px 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span style={{ fontSize: '18px' }}>{section.emoji}</span>
+                        {section.title}
+                      </h5>
 
-                    // Parse numbered items within section
-                    const items = content.split(/\n(?=\d+\)|\d+\.)/);
-                    
-                    return (
-                      <motion.div 
-                        key={idx}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        style={{
-                          padding: '16px',
-                          backgroundColor: 'white',
-                          borderRadius: '10px',
-                          border: `2px solid ${
-                            emoji === '🚨' ? THEME.danger :
-                            emoji === '⚠️' ? THEME.warning :
-                            emoji === '📋' ? THEME.primary :
-                            emoji === '💬' ? THEME.secondary :
-                            emoji === '🔍' ? THEME.success :
-                            THEME.light
-                          }`,
-                          borderLeft: `5px solid ${
-                            emoji === '🚨' ? THEME.danger :
-                            emoji === '⚠️' ? THEME.warning :
-                            emoji === '📋' ? THEME.primary :
-                            emoji === '💬' ? THEME.secondary :
-                            emoji === '🔍' ? THEME.success :
-                            THEME.light
-                          }`
-                        }}
-                      >
-                        {title && (
-                          <h5 style={{
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            color: THEME.dark,
-                            margin: '0 0 12px 0',
+                      {/* Numbered Items */}
+                      <div style={{ display: 'grid', gap: '10px', marginLeft: '4px' }}>
+                        {section.items.map((item, itemIdx) => (
+                          <div key={itemIdx} style={{
                             display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
+                            gap: '12px',
+                            alignItems: 'flex-start',
+                            fontSize: '13px',
+                            lineHeight: '1.5',
+                            color: THEME.text
                           }}>
-                            <span style={{ fontSize: '18px' }}>{emoji}</span>
-                            {title}
-                          </h5>
-                        )}
-                        <div style={{ display: 'grid', gap: '12px' }}>
-                          {items.map((item, itemIdx) => {
-                            const itemMatch = item.trim().match(/^(\d+[\.\)])\s*(.+)$/m);
-                            const stepNum = itemMatch ? itemMatch[1].trim() : '';
-                            const stepContent = itemMatch ? itemMatch[2] : item.trim();
-                            
-                            return (
-                              <div key={itemIdx} style={{
-                                display: 'grid',
-                                gridTemplateColumns: stepNum ? 'auto 1fr' : '1fr',
-                                gap: '12px',
-                                alignItems: 'start'
-                              }}>
-                                {stepNum && (
-                                  <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: '28px',
-                                    height: '28px',
-                                    backgroundColor: THEME.primary,
-                                    color: 'white',
-                                    borderRadius: '50%',
-                                    fontWeight: 'bold',
-                                    fontSize: '12px',
-                                    flexShrink: 0
-                                  }}>
-                                    {stepNum.replace(/[.\)]/g, '')}
-                                  </div>
-                                )}
-                                <p style={{
-                                  fontSize: '13px',
-                                  color: THEME.text,
-                                  margin: 0,
-                                  lineHeight: '1.6',
-                                  fontWeight: stepNum ? '500' : 'normal'
-                                }}>
-                                  {stepContent}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                            <div style={{
+                              minWidth: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              backgroundColor:
+                                section.emoji === '🚨' ? THEME.danger :
+                                section.emoji === '⚠️' ? THEME.warning :
+                                section.emoji === '📋' ? THEME.primary :
+                                section.emoji === '💬' ? THEME.secondary :
+                                section.emoji === '🔍' ? THEME.success :
+                                THEME.light,
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 'bold',
+                              fontSize: '12px',
+                              flexShrink: 0
+                            }}>
+                              {itemIdx + 1}
+                            </div>
+                            <p style={{ margin: '4px 0', flex: 1 }}>
+                              {item}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ))}
                 </motion.div>
               )}
 
@@ -1800,6 +1784,56 @@ Output ONLY the improved description, no other text.`
     } catch (error) {
       alert('❌ API Connection Error:\n' + error.message)
     }
+  }
+
+  // Helper to clean markdown formatting
+  const cleanMarkdown = (text) => {
+    if (!text) return ''
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove **bold**
+      .replace(/\*(.+?)\*/g, '$1')     // Remove *italic*
+      .replace(/###\s*/g, '')           // Remove ### headers
+      .replace(/##\s*/g, '')            // Remove ## headers
+      .replace(/#\s*/g, '')             // Remove # headers
+      .trim()
+  }
+
+  // Helper to parse recommendations properly
+  const parseAIRecommendations = (text) => {
+    if (!text) return []
+    
+    // Split by emoji sections (📋, ⚠️, 🔔, 💬, 🔍)
+    const sections = text.split(/\n(?=[\uD800-\uDBFF][\uDC00-\uDFFF]\s|\d+\s?[\.\)]|\d+\s?\d+\s?[\.\)])/)
+    
+    return sections.map((section, idx) => {
+      const lines = section.split('\n').filter(l => l.trim())
+      if (lines.length === 0) return null
+      
+      // Extract title line and items
+      const titleLine = lines[0]
+      const emojiMatch = titleLine.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF])\s*(.+?)(?:\s*:|$)/)
+      const emoji = emojiMatch ? emojiMatch[1] : ''
+      const title = emojiMatch ? cleanMarkdown(emojiMatch[2]) : cleanMarkdown(titleLine)
+      
+      // Extract numbered items
+      const items = []
+      let currentItem = ''
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim()
+        const numMatch = line.match(/^(\d+[\.\)])\s*(.+)$/)
+        
+        if (numMatch) {
+          if (currentItem) items.push(currentItem)
+          currentItem = cleanMarkdown(numMatch[2])
+        } else if (line && currentItem) {
+          currentItem += ' ' + cleanMarkdown(line)
+        }
+      }
+      if (currentItem) items.push(currentItem)
+      
+      return { emoji, title, items, sectionIdx: idx }
+    }).filter(s => s && (s.items.length > 0 || s.title))
   }
 
   // AI Recommendations & Safety Measures for Complaints
