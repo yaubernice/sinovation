@@ -689,7 +689,7 @@ export default function App() {
               {/* AI Recommendations Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
-                onClick={() => generateComplaintRecommendations(selectedComplaint)}
+                onClick={() => generateComplaintRecommendations(selectedComplaint, userRole)}
                 disabled={loadingAIRec}
                 style={{
                   padding: '12px 16px',
@@ -712,12 +712,12 @@ export default function App() {
                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}>
                       <Brain size={14} />
                     </motion.div>
-                    Generating AI Recommendations...
+                    Generating {userRole === 'tenant' ? 'Tenant' : 'Staff'} Guidance...
                   </>
                 ) : (
                   <>
                     <Brain size={14} />
-                    Get AI Recommendations & Safety Warnings
+                    Get AI {userRole === 'tenant' ? 'Tips & Safety' : 'Diagnostic & Repair'} Guidance
                   </>
                 )}
               </motion.button>
@@ -1843,55 +1843,98 @@ Output ONLY the formatted description with heading and numbered points. No other
   }
 
   // AI Recommendations & Safety Measures for Complaints
-  async function generateComplaintRecommendations(complaint) {
+  async function generateComplaintRecommendations(complaint, role = 'staff') {
     setLoadingAIRec(true)
     try {
       const categoryLabel = CATEGORIES[complaint.category]?.label || 'General'
-      const prompt = `You are an expert property manager. Provide SPECIFIC, actionable recommendations for this complaint.
+      
+      // TENANT RECOMMENDATIONS - Focus on what they can do and safety
+      const tenantPrompt = `You are an expert property manager providing guidance to a tenant about their complaint.
 
-COMPLAINT:
+TENANT'S COMPLAINT:
 Title: ${complaint.title}
 Category: ${categoryLabel}
 Urgency: ${complaint.urgency}
 Description: ${complaint.description}
 
-Format your response EXACTLY as follows (use these emojis):
+Format your response with ONE CLEAR HEADING and numbered steps grouped by topic:
 
-📋 IMMEDIATE ACTIONS (within 24h):
-1) Specific action for this complaint
-2) Next specific step
-3) Third specific action
-4) Fourth step specific to the issue
-5) Fifth follow-up step
+🛡️ IMMEDIATE SAFETY TIPS
+1) First safety precaution for this issue
+2) Second safety action they should take
+3) Third safety guideline
 
-⚠️ SAFETY WARNINGS:
-1) Specific safety risk for this issue
-2) Another safety concern
-3) Third safety warning
+💡 WHAT YOU CAN DO WHILE WAITING
+1) First thing tenant can do to help or prevent worsening
+2) Second temporary measure
+3) Third action to take
 
-🔔 ESCALATION TRIGGERS:
-1) Specific condition that needs escalation
-2) When to escalate this type of complaint
-3) Critical threshold
+📞 WHEN TO ESCALATE (Contact Management)
+1) Specific sign that it's urgent and needs immediate attention
+2) What to tell them when calling
+3) When to expect a response (timeframe)
 
-💬 TENANT COMMUNICATION:
-1) How to contact the tenant
-2) What specific message to send
-3) Follow-up communication plan
+✅ EXPECTED TIMELINE
+1) Estimated time for first inspection
+2) Typical repair timeline for this type of issue
+3) When you should hear back from maintenance
 
-🔍 FOLLOW-UP INSPECTION:
-1) When to inspect this issue
-2) What to specifically check
-3) How to verify resolution
+Be VERY specific to their complaint type and situation. Use simple, easy-to-understand language.`
 
-Be VERY specific and reference the actual complaint. Do NOT use generic phrases.`
+      // STAFF RECOMMENDATIONS - Focus on diagnosis, repair, and process
+      const staffPrompt = `You are an expert property manager providing technical guidance to maintenance staff.
 
-      console.log('🚀 Sending recommendation request for:', complaint.title)
+COMPLAINT TO DIAGNOSE & FIX:
+Title: ${complaint.title}
+Category: ${categoryLabel}
+Urgency: ${complaint.urgency}
+Description: ${complaint.description}
+From Unit: ${complaint.tenantUnit}
+
+Format your response with ONE CLEAR HEADING and numbered steps grouped by topic:
+
+🔧 DIAGNOSTIC STEPS
+1) First diagnostic test or observation
+2) Second diagnostic step
+3) Third diagnostic check
+4) How to confirm the issue
+
+⏱️ TIME ESTIMATE & MATERIALS
+1) Estimated repair time
+2) Required tools or materials
+3) Whether this needs a contractor or internal staff
+
+👷 REPAIR PROCEDURE
+1) First step of the repair
+2) Second procedure step
+3) Third step
+4) Final quality check
+
+📧 TENANT COMMUNICATION
+1) What to tell the tenant about the issue
+2) When to contact them (before/after)
+3) When to inform them of completion
+
+🔍 FOLLOW-UP
+1) When to schedule follow-up inspection
+2) What to verify during follow-up
+3) How to document completion
+
+🚨 CONTRACTORS TO CONTACT (if needed)
+1) Type of contractor needed for this issue
+2) Typical cost range estimate
+3) Emergency procedures
+
+Be VERY specific to the complaint type. Include exact diagnostic questions or tests.`
+
+      const prompt = role === 'tenant' ? tenantPrompt : staffPrompt
+
+      console.log(`🚀 Sending ${role} recommendations for:`, complaint.title)
       const response = await callOpenRouterAPI(prompt)
-      console.log('✅ Got AI recommendations:', response.substring(0, 100))
+      console.log(`✅ Got ${role} recommendations:`, response.substring(0, 100))
       setAiRecommendations(response)
     } catch (error) {
-      console.error('⚠️ AI Recommendations Failed:', error.message)
+      console.error(`⚠️ ${role} Recommendations Failed:`, error.message)
       console.log('📋 Falling back to knowledge base for category:', complaint.category)
       alert(`⚠️ API Error (using fallback):\n${error.message}\n\nCheck console for details.`)
       // Generate formatted fallback recommendations
