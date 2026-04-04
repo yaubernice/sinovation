@@ -722,6 +722,27 @@ export default function App() {
                 )}
               </motion.button>
 
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                onClick={testAPIConnection}
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: THEME.primary,
+                  color: 'white',
+                  border: '2px solid ' + THEME.warning,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                🧪 Test API
+              </motion.button>
+
               {/* AI Recommendations Display - Clear Step Format */}
               {aiRecommendations && (
                 <motion.div
@@ -1745,6 +1766,39 @@ Output ONLY the improved description, no other text.`
     }
 
     return formatted
+  }
+
+  // Test API connection directly
+  async function testAPIConnection() {
+    console.log('🧪 Testing OpenRouter API connection...')
+    try {
+      const testResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://sino-fas.vercel.app',
+          'X-Title': 'SINO-FAS Property Management',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-chat',
+          messages: [{ role: 'user', content: 'Say WORKING if you receive this message.' }],
+          max_tokens: 50
+        }),
+      })
+      
+      console.log('Test Response Status:', testResponse.status)
+      const testData = await testResponse.json()
+      console.log('Test Response Data:', testData)
+      
+      if (testResponse.ok) {
+        alert('✅ API IS WORKING!\n\nResponse: ' + testData.choices?.[0]?.message?.content)
+      } else {
+        alert('❌ API Error:\n' + JSON.stringify(testData, null, 2))
+      }
+    } catch (error) {
+      alert('❌ API Connection Error:\n' + error.message)
+    }
   }
 
   // AI Recommendations & Safety Measures for Complaints
