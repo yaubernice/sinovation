@@ -1,6 +1,6 @@
 # Sinovation
 
-SINO-FAS — a web prototype for property-management feedback analysis.
+Property-operations prototype for tenant feedback, with an AI chatbot and a manager dashboard.
 
 ## Overview
 
