@@ -1,6 +1,6 @@
 # Sinovation
 
-Property-operations prototype for tenant feedback, with an AI chatbot and a manager dashboard.
+Property-operations prototype with a tenant chatbot and a manager dashboard
 
 ## Overview
 
